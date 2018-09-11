@@ -108,7 +108,7 @@ def _convert_mp3_to_wav(book_name, book_nr):
                 metadata_csv_writer.writerow([fn, duration_s, sentence])
                 wav = samples[start:end]
                 target_sample_rate = 16000
-                wav = librosa.resample(wav, target_sample_rate, sr)
+                wav = librosa.resample(wav, sr, target_sample_rate)
                 librosa.output.write_wav(os.path.join(wavs_path, fn + ".wav"), wav, target_sample_rate)
 
             chapter += 1
