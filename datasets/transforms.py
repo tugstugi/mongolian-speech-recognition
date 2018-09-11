@@ -39,7 +39,7 @@ class LoadAudio(object):
         data = {
             'target': data['text'],
             'target_length': len(data['text']),
-            'input': features,
+            'input': features.astype(np.float32),
             'input_length': features.shape[0]
         }
         # data['sample_rate'] = sample_rate
