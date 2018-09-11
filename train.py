@@ -3,7 +3,7 @@
 """Train the Speech2Text network."""
 __author__ = 'Erdene-Ochir Tuguldur'
 
-import sys
+import os
 import time
 import argparse
 from tqdm import *
@@ -11,6 +11,10 @@ from tqdm import *
 import numpy as np
 
 import torch
+from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
+
+from tensorboardX import SummaryWriter
 
 # project imports
 from datasets import collate_fn, LoadAudio
@@ -18,31 +22,37 @@ from models import TinyWav2Letter
 from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoint
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-# parser.add_argument("--dataset", required=True, choices=['librispeech', 'mbspeech'], help='dataset name')
+parser.add_argument("--dataset", choices=['librispeech', 'mbspeech'], default='mbspeech', help='dataset name')
 parser.add_argument("--comment", type=str, default='', help='comment in tensorboard title')
 parser.add_argument("--batch-size", type=int, default=8, help='batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=0.0000, help='weight decay')
-parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
+parser.add_argument("--optim", choices=['sgd', 'adam'], default='adam', help='choices of optimization algorithms')
 parser.add_argument("--lr", type=float, default=0.1, help='learning rate for optimization')
 args = parser.parse_args()
 
-# if args.dataset == 'librispeech':
-#    from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab, idx2char
-# else:
-from datasets.mb_speech import MBSpeech as SpeechDataset, vocab, idx2char
 
-use_gpu = False  # torch.cuda.is_available()
+use_gpu = torch.cuda.is_available()
 print('use_gpu', use_gpu)
 if use_gpu:
     torch.backends.cudnn.benchmark = True
 
-from torch.utils.data import DataLoader
+if args.dataset == 'librispeech':
+    from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab, idx2char
+else:
+    from datasets.mb_speech import MBSpeech as SpeechDataset, vocab, idx2char
 
-train_data_loader = DataLoader(SpeechDataset(transform=LoadAudio()), batch_size=args.batch_size, shuffle=True,
-                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums)
-valid_data_loader = DataLoader(SpeechDataset(transform=LoadAudio()), batch_size=args.batch_size, shuffle=False,
-                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums)
+dataset = SpeechDataset(transform=LoadAudio())
+indices = list(range(len(dataset)))
+train_sampler = SubsetRandomSampler(indices[:-args.batch_size])
+valid_sampler = SubsetRandomSampler(indices[-args.batch_size:])
+
+train_data_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
+                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
+                               sampler=train_sampler)
+valid_data_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
+                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
+                               sampler=valid_sampler)
 
 # NN model
 model = TinyWav2Letter(vocab)
@@ -65,8 +75,8 @@ start_timestamp = int(time.time() * 1000)
 start_epoch = 0
 global_step = 0
 
-
-# logger = Logger(args.dataset, 'model')
+logdir = os.path.join('logdir', args.dataset)
+writer = SummaryWriter(log_dir=logdir)
 
 # load the last checkpoint if exists
 # last_checkpoint_file_name = get_last_checkpoint_file_name(logger.logdir)
@@ -133,40 +143,45 @@ def train(train_epoch, phase='train'):
         loss = loss / B
 
         if phase == 'train':
-            lr_decay(global_step)
+            #lr_decay(global_step)
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
             optimizer.step()
-            global_step += 1
 
+        global_step += 1
         it += 1
 
         loss = loss.item()
         running_loss += loss
 
-        if global_step % 50 == 1:
-            def to_text(tensor, max_length=80):
+        if phase == 'train' and global_step % 100 == 1 or phase == 'valid':
+            def to_text(tensor, max_length):
                 sentence = [idx2char[i] for i in tensor.cpu().detach().numpy()]
-                return ''.join(sentence[:max_length])
-
+                sentence = ''.join(sentence)
+                if max_length is not None:
+                    sentence = sentence[: max_length]
+                return sentence
             prediction = outputs.softmax(2).max(2)[1]
-            # print()
-            print(to_text(targets, targets_length[0]))
-            print(to_text(prediction[:, 0], 200).replace('B', ''))
+            ground_truth = to_text(targets, targets_length[0])
+            predicted_text = to_text(prediction[:, 0], 400).replace('B', '')
+            writer.add_text('%s/prediction' % phase, '%s\n%s' % (ground_truth, predicted_text), global_step)
 
-        if phase == 'train':
-            # update the progress bar
-            pbar.set_postfix({
-                'loss': "%.05f" % (running_loss / it)
-            })
-            # logger.log_step(phase, global_step, {'loss_l1': l1_loss, 'loss_att': att_loss},
-            #                {'mels-true': S[0, :, :], 'mels-pred': Y[0, :, :], 'attention': A[0, :, :]})
-            # if global_step % 5000 == 0:
-            #    # checkpoint at every 5000th step
-            #    save_checkpoint(logger.logdir, train_epoch, global_step, model, optimizer)
+
+        # update the progress bar
+        pbar.set_postfix({
+            'loss': "%.05f" % (running_loss / it)
+        })
+
+        # logger.log_step(phase, global_step, {'loss_l1': l1_loss, 'loss_att': att_loss},
+        #                {'mels-true': S[0, :, :], 'mels-pred': Y[0, :, :], 'attention': A[0, :, :]})
+        # if global_step % 5000 == 0:
+        #    # checkpoint at every 5000th step
+        #    save_checkpoint(logger.logdir, train_epoch, global_step, model, optimizer)
 
     epoch_loss = running_loss / it
+    #if phase == 'valid':
+    #    save_checkpoint(logdir, train_epoch, global_step, model, optimizer)
 
     # logger.log_epoch(phase, global_step, {'loss_l1': epoch_l1_loss, 'loss_att': epoch_att_loss})
 
@@ -182,8 +197,8 @@ while True:
                                                                      time_elapsed % 60)
     print("train epoch loss %f, step=%d, %s" % (train_epoch_loss, global_step, time_str))
 
-    # valid_epoch_loss = train(epoch, phase='valid')
-    # print("valid epoch loss %f" % valid_epoch_loss)
+    valid_epoch_loss = train(epoch, phase='valid')
+    print("valid epoch loss %f" % valid_epoch_loss)
 
     epoch += 1
     # if global_step >= hp.model_max_iteration:

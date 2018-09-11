@@ -8,7 +8,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 
-vocab = "B abcdefghijklmnopqrstuvwxyz'"
+vocab = "B abcdefghijklmnopqrstuvwxyz'"  # B: blank
 char2idx = {char: idx for idx, char in enumerate(vocab)}
 idx2char = {idx: char for idx, char in enumerate(vocab)}
 
