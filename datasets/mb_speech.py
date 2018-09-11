@@ -34,8 +34,6 @@ def read_metadata(dataset_path, max_duration):
         fnames.append(os.path.join(dataset_path, 'wavs', '%s.wav' % fname))
         texts.append(np.array(convert_text(text)))
 
-        break
-
     return fnames, texts
 
 
@@ -61,11 +59,3 @@ class MBSpeech(Dataset):
 
     def __len__(self):
         return len(self.fnames)
-
-
-if __name__ == '__main__':
-    dataset = MBSpeech()
-    print(len(dataset))
-    print(dataset[0])
-    for i in dataset[0]['text']:
-        print(idx2char[i])
