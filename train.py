@@ -31,7 +31,6 @@ parser.add_argument("--optim", choices=['sgd', 'adam'], default='adam', help='ch
 parser.add_argument("--lr", type=float, default=0.1, help='learning rate for optimization')
 args = parser.parse_args()
 
-
 use_gpu = torch.cuda.is_available()
 print('use_gpu', use_gpu)
 if use_gpu:
@@ -79,10 +78,10 @@ logdir = os.path.join('logdir', args.dataset)
 writer = SummaryWriter(log_dir=logdir)
 
 # load the last checkpoint if exists
-# last_checkpoint_file_name = get_last_checkpoint_file_name(logger.logdir)
-# if last_checkpoint_file_name:
-#    print("loading the last checkpoint: %s" % last_checkpoint_file_name)
-#    start_epoch, global_step = load_checkpoint(last_checkpoint_file_name, model, optimizer)
+last_checkpoint_file_name = get_last_checkpoint_file_name(logdir)
+if last_checkpoint_file_name:
+    print("loading the last checkpoint: %s" % last_checkpoint_file_name)
+    start_epoch, global_step = load_checkpoint(last_checkpoint_file_name, model, optimizer)
 
 
 def get_lr():
@@ -99,7 +98,9 @@ def train(train_epoch, phase='train'):
     global global_step
 
     # lr_decay(global_step)
-    print("epoch %3d with lr=%.02e" % (train_epoch, get_lr()))
+    if phase == 'train':
+        print("epoch %3d with lr=%.02e" % (epoch, get_lr()))
+        writer.add_scalar('%s/learning_rate' % phase, get_lr(), global_step)
 
     model.train() if phase == 'train' else model.eval()
     torch.set_grad_enabled(True) if phase == 'train' else torch.set_grad_enabled(False)
@@ -143,7 +144,7 @@ def train(train_epoch, phase='train'):
         loss = loss / B
 
         if phase == 'train':
-            #lr_decay(global_step)
+            # lr_decay(global_step)
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
@@ -155,35 +156,33 @@ def train(train_epoch, phase='train'):
         loss = loss.item()
         running_loss += loss
 
+        if global_step % 50 == 0:
+            writer.add_scalar('%s/loss' % phase, loss, global_step)
+
         if phase == 'train' and global_step % 100 == 1 or phase == 'valid':
-            def to_text(tensor, max_length):
+            def to_text(tensor, max_length=None):
                 sentence = [idx2char[i] for i in tensor.cpu().detach().numpy()]
                 sentence = ''.join(sentence)
                 if max_length is not None:
                     sentence = sentence[: max_length]
                 return sentence
+
             prediction = outputs.softmax(2).max(2)[1]
             ground_truth = to_text(targets, targets_length[0])
-            predicted_text = to_text(prediction[:, 0], 400).replace('B', '')
-            writer.add_text('%s/prediction' % phase, '%s\n%s' % (ground_truth, predicted_text), global_step)
-
+            predicted_text = to_text(prediction[:, 0]).replace('B', '')
+            writer.add_text('%s/prediction' % phase,
+                            'truth: %s\npredicted: %s' % (ground_truth, predicted_text), global_step)
 
         # update the progress bar
         pbar.set_postfix({
             'loss': "%.05f" % (running_loss / it)
         })
 
-        # logger.log_step(phase, global_step, {'loss_l1': l1_loss, 'loss_att': att_loss},
-        #                {'mels-true': S[0, :, :], 'mels-pred': Y[0, :, :], 'attention': A[0, :, :]})
-        # if global_step % 5000 == 0:
-        #    # checkpoint at every 5000th step
-        #    save_checkpoint(logger.logdir, train_epoch, global_step, model, optimizer)
-
     epoch_loss = running_loss / it
-    #if phase == 'valid':
-    #    save_checkpoint(logdir, train_epoch, global_step, model, optimizer)
+    writer.add_scalar('%s/epoch_loss' % phase, epoch_loss, epoch)
 
-    # logger.log_epoch(phase, global_step, {'loss_l1': epoch_l1_loss, 'loss_att': epoch_att_loss})
+    if phase == 'valid':
+        save_checkpoint(logdir, train_epoch, global_step, model, optimizer)
 
     return epoch_loss
 
