@@ -1,0 +1,7 @@
+torch>=0.4
+librosa>=0.6.1
+python_speech_features
+tqdm
+tensorboardX
+numpy
+scipy
