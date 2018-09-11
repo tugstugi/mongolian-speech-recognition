@@ -1,4 +1,5 @@
 Mongolian speech recognition experiments using 5 hours audio from the [Mongolian Bible](https://www.bible.com/mn/versions/1590-2013-ariun-bibli-2013).
+This dataset was already successfully used to create a [Mongolian text-to-speech system](https://github.com/tugstugi/pytorch-dc-tts).
 
 ```
 Монгол speech recognition-д зориулсан ярианы сан үүсгэхэд хамтрах сонирхолтой
