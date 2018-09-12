@@ -28,10 +28,10 @@ should be already recognizable after 30 minutes or 10 epochs:
 ```
 **PREDICTED:**
 ```
-аааааааааааалллллллливвваааааааааааааааааа ууусссс ххххууввссаанн гэээрррррррррр үүсссэррррррххх ттуусссуррссрррссссаннн хххээссссггийгг ттаааааааааааааааааааа ннаарррррррр ааааааааааааааааааааарррииинннннн гггаааааааааааааарррррртт ууггааааааааааааааааааагтттүүнннррррааааа
+аливаа ус хусан ээр үсэрэхэ ус үсэрсан хэсгийг та нар ариун газарт угаагтун
 ```
 
 ## TODO
-1. beam search to collapse the repeated characters
-2. language model
+1. train a language model
+2. beam search with the language model
 3. bigger dataset

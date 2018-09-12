@@ -130,7 +130,7 @@ def train(train_epoch, phase='train'):
         if use_gpu:
             inputs = inputs.cuda()
 
-        # B, V, T
+        # BxCxT
         outputs = model(inputs)
         # make TxBxC
         outputs = outputs.permute(2, 0, 1)
@@ -175,7 +175,7 @@ def train(train_epoch, phase='train'):
                 return sentence
             prediction = outputs.softmax(2).max(2)[1]
             ground_truth = to_text(targets, targets_length[0])
-            predicted_text = to_text(prediction[:, 0], remove_repetitions=True).replace('B', '')
+            predicted_text = to_text(prediction[:, 0], remove_repetitions=True)
             # print(ground_truth)
             # print(predicted_text)
             writer.add_text('%s/prediction' % phase,
