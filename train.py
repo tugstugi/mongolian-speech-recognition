@@ -160,16 +160,24 @@ def train(train_epoch, phase='train'):
             writer.add_scalar('%s/loss' % phase, loss, global_step)
 
         if phase == 'train' and global_step % 100 == 1 or phase == 'valid':
-            def to_text(tensor, max_length=None):
-                sentence = [idx2char[i] for i in tensor.cpu().detach().numpy()]
-                sentence = ''.join(sentence)
-                if max_length is not None:
-                    sentence = sentence[: max_length]
+            def to_text(tensor, max_length=None, remove_repetitions=False):
+                sentence = ''
+                sequence = tensor.cpu().detach().numpy()
+                for i in range(len(sequence)):
+                    if max_length is not None and i >= max_length:
+                        continue
+                    char = idx2char[sequence[i]]
+                    if char != 'B':  # ignore blank
+                        if remove_repetitions and i != 0 and char == idx2char[sequence[i - 1]]:
+                            pass
+                        else:
+                            sentence = sentence + char
                 return sentence
-
             prediction = outputs.softmax(2).max(2)[1]
             ground_truth = to_text(targets, targets_length[0])
-            predicted_text = to_text(prediction[:, 0]).replace('B', '')
+            predicted_text = to_text(prediction[:, 0], remove_repetitions=True).replace('B', '')
+            # print(ground_truth)
+            # print(predicted_text)
             writer.add_text('%s/prediction' % phase,
                             'truth: %s\npredicted: %s' % (ground_truth, predicted_text), global_step)
 
