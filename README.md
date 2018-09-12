@@ -15,7 +15,7 @@ Because of the dataset size, only cut down versions of the following papers are 
 2. Install remaining dependencies: `pip install -r requirements.txt`
 3. Download the dataset: `python dl_mbspeech.py`
 4. Train: `python train.py`
-  * logs for the TensorBoard are saved in the folder `logdir`
+   * logs for the TensorBoard are saved in the folder `logdir`
   
 ## Results 
 During the training, the ground truth and recognized texts are logged into the TensorBoard.
