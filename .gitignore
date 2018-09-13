@@ -7,3 +7,4 @@ __pycache__
 logdir/
 test.py
 import_librivox.py
+*.wav
