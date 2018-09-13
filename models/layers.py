@@ -8,12 +8,18 @@ import torch.nn.functional as F
 
 
 class C(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, dilation=1, dropout_rate=0.0):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, dropout_rate=0.0):
         """1D Convolution with the batch normalization and RELU."""
         super(C, self).__init__()
         self.dropout_rate = dropout_rate
 
-        padding = (kernel_size - 1) * dilation // 2
+        assert 1 <= stride <= 2
+        if dilation > 1:
+            assert stride == 1
+            padding = (kernel_size - 1) * dilation // 2
+        else:
+            padding = (kernel_size - stride + 1) // 2
+
         self.conv = nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=padding, dilation=dilation)
         nn.init.xavier_uniform_(self.conv.weight, nn.init.calculate_gain('relu'))
 
