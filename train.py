@@ -28,7 +28,7 @@ parser.add_argument("--batch-size", type=int, default=8, help='batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=0.0000, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='adam', help='choices of optimization algorithms')
-parser.add_argument("--lr", type=float, default=0.1, help='learning rate for optimization')
+parser.add_argument("--lr", type=float, default=0.001, help='learning rate for optimization')
 args = parser.parse_args()
 
 use_gpu = torch.cuda.is_available()
