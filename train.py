@@ -27,8 +27,8 @@ parser.add_argument("--comment", type=str, default='', help='comment in tensorbo
 parser.add_argument("--batch-size", type=int, default=8, help='batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=0.0000, help='weight decay')
-parser.add_argument("--optim", choices=['sgd', 'adam'], default='adam', help='choices of optimization algorithms')
-parser.add_argument("--lr", type=float, default=0.001, help='learning rate for optimization')
+parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
+parser.add_argument("--lr", type=float, default=0.0003, help='learning rate for optimization')
 args = parser.parse_args()
 
 use_gpu = torch.cuda.is_available()
@@ -144,7 +144,6 @@ def train(train_epoch, phase='train'):
         loss = loss / B
 
         if phase == 'train':
-            # lr_decay(global_step)
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
