@@ -17,7 +17,7 @@ class TinyWav2Letter(nn.Module):
         super(TinyWav2Letter, self).__init__()
 
         self.layers = nn.Sequential(
-            C(64, 256, 11, dropout_rate=0.2),  # TODO: stride=2 vs dilation
+            C(64, 256, 11, stride=2, dropout_rate=0.2),
 
             C(256, 256, 11, dropout_rate=0.2),
             C(256, 256, 11, dropout_rate=0.2),
