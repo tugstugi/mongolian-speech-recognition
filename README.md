@@ -1,4 +1,5 @@
-Mongolian speech recognition experiments using 5 hours audio from the [Mongolian Bible](https://www.bible.com/mn/versions/1590-2013-ariun-bibli-2013).
+Mongolian speech recognition experiments using 5 hours audio from first 3 books of the
+[Mongolian Bible](https://www.bible.com/mn/versions/1590-2013-ariun-bibli-2013).
 This dataset was already successfully used to create a [Mongolian text-to-speech system](https://github.com/tugstugi/pytorch-dc-tts).
 
 ```
@@ -20,7 +21,7 @@ Because of the dataset size, only cut down versions of the following papers are 
 ## Results 
 During the training, the ground truth and recognized texts are logged into the TensorBoard.
 Because the dataset contains only a single person, the predicted texts from the validation set
-should be already recognizable after 30 minutes or 10 epochs:
+should be already recognizable after few epochs:
 
 **EXPECTED:**
 ```
@@ -28,7 +29,20 @@ should be already recognizable after 30 minutes or 10 epochs:
 ```
 **PREDICTED:**
 ```
-аливаа цус хувцсан дээр үсэрэхэд цус усирсөн хэсгииг та нар ариун газарт угаагтун
+аливаа цус хувцсан дээр үсэрхэд цус усарсан хэсхийг та нар ариун газарт угаагтун
+```
+
+The dataset contains only first 3 books of the Mongolian Bible. You can validate your trained model
+from other Bible books (download them from https://www.bible.com/versions/1590-2013-ariun-bibli-2013 as mp3 file).
+
+To validate an audio file using a pretrained model, use following commands:
+```
+# download a pretrained model
+wget https://www.dropbox.com/s/6s56jrdin8cnc7l/epoch-0165-bd6072f.pth
+# switch to the commit where the model was trained
+git checkout bd6072f
+# evaluate an audio file
+python eval.py --checkpoint=epoch-0165-bd6072f.pth test.mp3
 ```
 
 ## TODO
