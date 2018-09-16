@@ -8,3 +8,4 @@ logdir/
 test.py
 import_librivox.py
 *.wav
+*.pth

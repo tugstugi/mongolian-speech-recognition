@@ -97,10 +97,8 @@ def lr_decay(step, warmup_steps=4000):
 def train(train_epoch, phase='train'):
     global global_step
 
-    # lr_decay(global_step)
-    if phase == 'train':
-        print("epoch %3d with lr=%.02e" % (epoch, get_lr()))
-        writer.add_scalar('%s/learning_rate' % phase, get_lr(), global_step)
+    lr_decay(global_step)
+    print("epoch %3d with lr=%.02e" % (epoch, get_lr()))
 
     model.train() if phase == 'train' else model.eval()
     torch.set_grad_enabled(True) if phase == 'train' else torch.set_grad_enabled(False)
@@ -144,6 +142,7 @@ def train(train_epoch, phase='train'):
         loss = loss / B
 
         if phase == 'train':
+            lr_decay(global_step)
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
@@ -157,6 +156,8 @@ def train(train_epoch, phase='train'):
 
         if global_step % 50 == 0:
             writer.add_scalar('%s/loss' % phase, loss, global_step)
+            if phase == 'train':
+                writer.add_scalar('%s/learning_rate' % phase, get_lr(), global_step)
 
         if phase == 'train' and global_step % 100 == 1 or phase == 'valid':
             def to_text(tensor, max_length=None, remove_repetitions=False):
