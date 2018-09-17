@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 """Read a WAV file and try to recognize the speech."""
+__author__ = 'Erdene-Ochir Tuguldur'
 
 import argparse
 import torch
