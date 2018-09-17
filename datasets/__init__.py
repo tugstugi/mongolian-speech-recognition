@@ -1,2 +1,2 @@
-from .transforms import LoadAudio
+from .transforms import Compose, LoadAudio, SpeedChange, ExtractSpeechFeatures
 from .collate import collate_fn

@@ -5,7 +5,7 @@
 import argparse
 import torch
 
-from datasets import LoadAudio
+from datasets import Compose, LoadAudio, ExtractSpeechFeatures
 from datasets.mb_speech import vocab, idx2char
 from models import TinyWav2Letter
 from utils import load_checkpoint
@@ -19,7 +19,7 @@ data = {
     'fname': args.audio,
     'text': ''
 }
-data = LoadAudio()(data)
+data = Compose([LoadAudio(), ExtractSpeechFeatures()])(data)
 
 model = TinyWav2Letter(vocab)
 load_checkpoint(args.checkpoint, model, optimizer=None)

@@ -8,8 +8,6 @@ import time
 import argparse
 from tqdm import *
 
-import numpy as np
-
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
@@ -17,7 +15,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from tensorboardX import SummaryWriter
 
 # project imports
-from datasets import collate_fn, LoadAudio
+from datasets import collate_fn, Compose, LoadAudio, SpeedChange, ExtractSpeechFeatures
 from models import TinyWav2Letter
 from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoint
 
@@ -41,15 +39,16 @@ if args.dataset == 'librispeech':
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab, idx2char
 
-dataset = SpeechDataset(transform=LoadAudio())
-indices = list(range(len(dataset)))
+train_dataset = SpeechDataset(transform=Compose([LoadAudio(), SpeedChange(), ExtractSpeechFeatures()]))
+valid_dataset = SpeechDataset(transform=Compose([LoadAudio(), ExtractSpeechFeatures()]))
+indices = list(range(len(train_dataset)))
 train_sampler = SubsetRandomSampler(indices[:-args.batch_size])
 valid_sampler = SubsetRandomSampler(indices[-args.batch_size:])
 
-train_data_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
+train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,
                                collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
                                sampler=train_sampler)
-valid_data_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
+valid_data_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False,
                                collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
                                sampler=valid_sampler)
 
