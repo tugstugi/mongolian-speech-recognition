@@ -19,9 +19,9 @@ def get_last_checkpoint_file_name(logdir):
     return checkpoints[-1]
 
 
-def load_checkpoint(checkpoint_file_name, model, optimizer):
+def load_checkpoint(checkpoint_file_name, model, optimizer, use_gpu=False):
     """Loads the checkpoint into the given model and optimizer."""
-    checkpoint = torch.load(checkpoint_file_name)
+    checkpoint = torch.load(checkpoint_file_name, map_location='cpu' if not use_gpu else None)
     model.load_state_dict(checkpoint['state_dict'])
     model.float()
     if optimizer is not None:

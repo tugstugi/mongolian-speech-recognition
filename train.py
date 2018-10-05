@@ -80,7 +80,7 @@ writer = SummaryWriter(log_dir=logdir)
 last_checkpoint_file_name = get_last_checkpoint_file_name(logdir)
 if last_checkpoint_file_name:
     print("loading the last checkpoint: %s" % last_checkpoint_file_name)
-    start_epoch, global_step = load_checkpoint(last_checkpoint_file_name, model, optimizer)
+    start_epoch, global_step = load_checkpoint(last_checkpoint_file_name, model, optimizer, use_gpu)
 
 
 def get_lr():
