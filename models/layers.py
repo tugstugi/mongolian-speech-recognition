@@ -33,7 +33,7 @@ class C(nn.Module):
         # y = torch.clamp(y, min=0.0, max=20.0)  # like RELU but clamp at 20.0
 
         if self.dropout_rate > 0:
-            y = F.dropout(y, p=self.dropout_rate, training=self.training, inplace=False)
+            y = F.dropout(y, p=self.dropout_rate, training=self.training, inplace=True)
         return y
 
 

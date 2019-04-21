@@ -11,7 +11,6 @@ from tqdm import *
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
-from torch.nn import CTCLoss
 
 from tensorboardX import SummaryWriter
 
@@ -58,7 +57,12 @@ model = TinyWav2Letter(vocab)
 if use_gpu:
     model = model.cuda()
 
-criterion = CTCLoss(reduction='sum')
+# loss function
+# pytorch master already implemented the CTC loss but not usable yet!
+# so we are using now warpctc_pytorch
+from warpctc_pytorch import CTCLoss
+
+criterion = CTCLoss()
 
 if args.optim == 'sgd':
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay)
@@ -104,12 +108,21 @@ def train(train_epoch, phase='train'):
 
     pbar = tqdm(data_loader, unit="audios", unit_scale=data_loader.batch_size)
     for batch in pbar:
-        inputs, targets = batch['input'], batch['target'].int()
-        inputs_length, targets_length = batch['input_length'].int(), batch['target_length'].int()
+        inputs, targets = batch['input'], batch['target']
+        inputs_length, targets_length = batch['input_length'], batch['target_length']
         inputs = inputs.permute(0, 2, 1)
 
         B, N = targets.size()  # batch size and text count
         _, n_feature, T = inputs.size()  # number of feature bins and time
+
+        targets.requires_grad = False
+        targets_length.requires_grad = False
+        inputs_length.requires_grad = False
+
+        # warpctc_pytorch wants Int instead of Long!
+        targets = targets.int()
+        inputs_length = inputs_length.int()
+        targets_length = targets_length.int()
 
         if use_gpu:
             inputs = inputs.cuda()
@@ -118,12 +131,12 @@ def train(train_epoch, phase='train'):
         outputs = model(inputs)
         # make TxBxC
         outputs = outputs.permute(2, 0, 1)
-        outputs = outputs.log_softmax(2)
 
-        # one dimensional vector without blank elements
+        # warpctc_pytorch wants one dimensional vector without blank elements
         targets = targets.view(-1)
         targets = targets[targets.nonzero().squeeze()]
 
+        # warpctc_pytorch wants the last 3 parameters on the CPU! -> only inputs is converted to CUDA
         loss = criterion(outputs, targets, inputs_length, targets_length)
         loss = loss / B
 
@@ -159,7 +172,7 @@ def train(train_epoch, phase='train'):
                         else:
                             sentence = sentence + char
                 return sentence
-            prediction = outputs.max(2)[1]
+            prediction = outputs.softmax(2).max(2)[1]
             ground_truth = to_text(targets, targets_length[0])
             predicted_text = to_text(prediction[:, 0], remove_repetitions=True)
             # print(ground_truth)

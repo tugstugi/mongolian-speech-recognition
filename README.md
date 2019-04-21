@@ -7,9 +7,10 @@ Because of the dataset size, only cut down versions of the following papers are 
 * ...
 
 ## Training
-1. Install remaining dependencies: `pip install -r requirements.txt`
-2. Download the dataset: `python dl_mbspeech.py`
-3. Train: `python train.py`
+1. Install the `warp-ctc`python binding: https://github.com/SeanNaren/warp-ctc
+2. Install remaining dependencies: `pip install -r requirements.txt`
+3. Download the dataset: `python dl_mbspeech.py`
+4. Train: `python train.py`
    * logs for the TensorBoard are saved in the folder `logdir`
   
 ## Results 
