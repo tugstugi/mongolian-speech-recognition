@@ -12,8 +12,8 @@ Because of the dataset size, only cut down versions of the following papers are 
 3. Download the dataset: `python dl_mbspeech.py`
 4. Train: `python train.py`
    * logs for the TensorBoard are saved in the folder `logdir`
-  
-## Results 
+
+## Results
 During the training, the ground truth and recognized texts are logged into the TensorBoard.
 Because the dataset contains only a single person, the predicted texts from the validation set
 should be already recognizable after few epochs:
@@ -52,17 +52,5 @@ python eval.py --checkpoint=epoch-0182-fb4c392.pth test.wav
 # will output: 'биний төрсн нуутөр мөнголын сайхон орн'
 ```
 
-## TODO
-Одоогийн байдлаар энд бичсэн кодыг ашиглан нэг хүний дуу хоолойг ямар ч асуудалгүйгээр таньж
-текст рүү хөрвүүлэх боломжтой. Үүнийг сайжруулж дурын хүний дуу хоолойг таниулдаг болгохын тулд
-доорх ажлуудыг хийх ёстой:
-1. Олон хүний дуу хоолой агуулсан ярианы сан үүсгэх. Яаг үүнд зориулаад Mozilla
-[Common Voice](https://voice.mozilla.org/en/languages) гэж төсөл эхлүүлсэн байгаа бөгөөд Англи
-хэлнээс гадна Хятад, Турк, Киргиз гэх мэт хэл орсон. Энд Монгол хэлийг оруулбал дуртай хүмүүс нь
-Common Voice-ын цахим хуудас болон гар утасны аппуудаар нь ороод өөрийн дуу хоолойгоо бичээд ярианы сан үүсгэж болно.
-2. [Language model](https://en.wikipedia.org/wiki/Language_model) үүсгэх. Үүнийг хар ухаанаар
-тайлбарлавал баруун аймгийн хүн `көк тэнгэр` гэж хэлбэл `хөх тэнгэр` гэж хэлэх гэсэн байна аа гэж таниад засдаг
-model юм. Үүнийг хийхэд том хэмжээний текст корпус шаардлагатай. Эхний ээлжид Википедиагийн
-Монгол агуулгуудыг хэрэглээд [KenLM](https://github.com/kpu/kenlm) ашиглаж language model үүсгэнэ.
-
-Дээрх ажлуудыг хийхэд туслах мөн code contribute хийх хүн байвал tugstugi AT gmail.com хаягаар холбогдоно уу.
+## Contribute
+If you are Mongolian and want to help us, please record your voice on [CommonVoice](https://voice.mozilla.org/mn/speak).
