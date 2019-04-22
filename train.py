@@ -19,6 +19,8 @@ from datasets import collate_fn, Compose, LoadAudio, SpeedChange, ExtractSpeechF
 from models import TinyWav2Letter
 from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoint
 
+from decoder import GreedyDecoder
+
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--dataset", choices=['librispeech', 'mbspeech'], default='mbspeech', help='dataset name')
 parser.add_argument("--comment", type=str, default='', help='comment in tensorboard title')
@@ -63,6 +65,7 @@ if use_gpu:
 from warpctc_pytorch import CTCLoss
 
 criterion = CTCLoss()
+decoder = GreedyDecoder(labels=vocab)
 
 if args.optim == 'sgd':
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay)
@@ -105,6 +108,7 @@ def train(train_epoch, phase='train'):
 
     it = 0
     running_loss = 0.0
+    total_cer, total_wer = 0, 0
 
     pbar = tqdm(data_loader, unit="audios", unit_scale=data_loader.batch_size)
     for batch in pbar:
@@ -133,11 +137,11 @@ def train(train_epoch, phase='train'):
         outputs = outputs.permute(2, 0, 1)
 
         # warpctc_pytorch wants one dimensional vector without blank elements
-        targets = targets.view(-1)
-        targets = targets[targets.nonzero().squeeze()]
+        targets_1d = targets.view(-1)
+        targets_1d = targets_1d[targets_1d.nonzero().squeeze()]
 
         # warpctc_pytorch wants the last 3 parameters on the CPU! -> only inputs is converted to CUDA
-        loss = criterion(outputs, targets, inputs_length, targets_length)
+        loss = criterion(outputs, targets_1d, inputs_length, targets_length)
         loss = loss / B
 
         if phase == 'train':
@@ -159,26 +163,20 @@ def train(train_epoch, phase='train'):
                 writer.add_scalar('%s/learning_rate' % phase, get_lr(), global_step)
 
         if phase == 'train' and global_step % 50 == 1 or phase == 'valid':
-            def to_text(tensor, max_length=None, remove_repetitions=False):
-                sentence = ''
-                sequence = tensor.cpu().detach().numpy()
-                for i in range(len(sequence)):
-                    if max_length is not None and i >= max_length:
-                        continue
-                    char = idx2char[sequence[i]]
-                    if char != 'B':  # ignore blank
-                        if remove_repetitions and i != 0 and char == idx2char[sequence[i - 1]]:
-                            pass
-                        else:
-                            sentence = sentence + char
-                return sentence
-            prediction = outputs.softmax(2).max(2)[1]
-            ground_truth = to_text(targets, targets_length[0])
-            predicted_text = to_text(prediction[:, 0], remove_repetitions=True)
-            # print(ground_truth)
-            # print(predicted_text)
-            writer.add_text('%s/prediction' % phase,
-                            'truth: %s\npredicted: %s' % (ground_truth, predicted_text), global_step)
+            with torch.no_grad():
+                target_strings = decoder.convert_to_strings(targets)
+                decoded_output, _ = decoder.decode(outputs.softmax(2).permute(1, 0, 2))
+                writer.add_text('%s/prediction' % phase,
+                                'truth: %s\npredicted: %s' % (target_strings[0][0], decoded_output[0][0]), global_step)
+
+                if phase == 'valid':
+                    cer, wer = 0, 0
+                    for x in range(len(target_strings)):
+                        transcript, reference = decoded_output[x][0], target_strings[x][0]
+                        cer += decoder.cer(transcript, reference) / float(len(reference))
+                        wer += decoder.wer(transcript, reference) / float(len(reference.split()))
+                    total_cer += cer
+                    total_wer += wer
 
         # update the progress bar
         pbar.set_postfix({
@@ -189,6 +187,10 @@ def train(train_epoch, phase='train'):
     writer.add_scalar('%s/epoch_loss' % phase, epoch_loss, epoch)
 
     if phase == 'valid':
+        valid_dataset_length = len(valid_dataset)
+        writer.add_scalar('%s/epoch_cer' % phase, (total_cer / valid_dataset_length) * 100, epoch)
+        writer.add_scalar('%s/epoch_wer' % phase, (total_wer / valid_dataset_length) * 100, epoch)
+
         save_checkpoint(logdir, train_epoch, global_step, model, optimizer)
 
     return epoch_loss
