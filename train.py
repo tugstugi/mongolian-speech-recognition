@@ -22,11 +22,11 @@ from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoin
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--dataset", choices=['librispeech', 'mbspeech'], default='mbspeech', help='dataset name')
 parser.add_argument("--comment", type=str, default='', help='comment in tensorboard title')
-parser.add_argument("--batch-size", type=int, default=8, help='batch size')
+parser.add_argument("--batch-size", type=int, default=32, help='batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=0.0000, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
-parser.add_argument("--lr", type=float, default=0.0003, help='learning rate for optimization')
+parser.add_argument("--lr", type=float, default=1e-3, help='learning rate for optimization')
 args = parser.parse_args()
 
 use_gpu = torch.cuda.is_available()
@@ -87,7 +87,7 @@ def get_lr():
     return optimizer.param_groups[0]['lr']
 
 
-def lr_decay(step, warmup_steps=4000):
+def lr_decay(step, warmup_steps=2000):
     # https://github.com/tensorflow/tensor2tensor/issues/280
     new_lr = args.lr * warmup_steps ** 0.5 * min((step + 1) * warmup_steps ** -1.5, (step + 1) ** -0.5)
     optimizer.param_groups[0]['lr'] = new_lr
@@ -153,12 +153,12 @@ def train(train_epoch, phase='train'):
         loss = loss.item()
         running_loss += loss
 
-        if global_step % 50 == 0:
+        if global_step % 10 == 0:
             writer.add_scalar('%s/loss' % phase, loss, global_step)
             if phase == 'train':
                 writer.add_scalar('%s/learning_rate' % phase, get_lr(), global_step)
 
-        if phase == 'train' and global_step % 100 == 1 or phase == 'valid':
+        if phase == 'train' and global_step % 50 == 1 or phase == 'valid':
             def to_text(tensor, max_length=None, remove_repetitions=False):
                 sentence = ''
                 sequence = tensor.cpu().detach().numpy()
