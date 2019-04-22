@@ -28,6 +28,8 @@ def read_metadata(dataset_path, max_duration):
             duration = float(duration)
             if duration > max_duration:
                 continue
+            if duration < 1.5:
+                continue
         except ValueError:
             continue
 
