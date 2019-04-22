@@ -6,6 +6,8 @@ Because of the dataset size, only cut down versions of the following papers are 
 * [Letter-Based Speech Recognition with Gated ConvNets](https://arxiv.org/abs/1712.09444)
 * ...
 
+This repo is partially based on [SeanNaren/deepspeech.pytorch](https://github.com/SeanNaren/deepspeech.pytorch).
+
 ## Training
 1. Install the `warp-ctc`python binding: https://github.com/SeanNaren/warp-ctc
 2. Install remaining dependencies: `pip install -r requirements.txt`
