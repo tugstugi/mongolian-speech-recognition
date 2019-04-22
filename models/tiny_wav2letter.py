@@ -31,7 +31,15 @@ class TinyWav2Letter(nn.Module):
             C(512, 512, 17, dropout_rate=0.2),
             C(512, 512, 17, dropout_rate=0.2),
 
-            C(512, 896, 29, dropout_rate=0.3),
+            C(512, 640, 21, dropout_rate=0.3),
+            # C(640, 640, 21, dropout_rate=0.3),
+            # C(640, 640, 21, dropout_rate=0.3),
+
+            # C(640, 768, 25, dropout_rate=0.3),
+            # C(768, 768, 25, dropout_rate=0.3),
+            # C(768, 768, 25, dropout_rate=0.3),
+
+            C(640, 896, 29, dropout_rate=0.3),
 
             C(896, 1024, 1, dropout_rate=0.4),
 

@@ -4,13 +4,15 @@
 __author__ = 'Erdene-Ochir Tuguldur'
 
 import os
+import sys
 import time
 import argparse
 from tqdm import *
 
+from apex import amp
+
 import torch
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data import DataLoader, Subset
 
 from tensorboardX import SummaryWriter
 
@@ -29,12 +31,15 @@ parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number
 parser.add_argument("--weight-decay", type=float, default=0.0000, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
 parser.add_argument("--lr", type=float, default=1e-3, help='learning rate for optimization')
+parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
 args = parser.parse_args()
 
 use_gpu = torch.cuda.is_available()
 print('use_gpu', use_gpu)
-if use_gpu:
-    torch.backends.cudnn.benchmark = True
+if not use_gpu:
+    print("GPU not available!")
+    sys.exit(1)
+torch.backends.cudnn.benchmark = True
 
 if args.dataset == 'librispeech':
     from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab, idx2char
@@ -44,20 +49,17 @@ else:
 train_dataset = SpeechDataset(transform=Compose([LoadAudio(), SpeedChange(), ExtractSpeechFeatures()]))
 valid_dataset = SpeechDataset(transform=Compose([LoadAudio(), ExtractSpeechFeatures()]))
 indices = list(range(len(train_dataset)))
-train_sampler = SubsetRandomSampler(indices[:-args.batch_size])
-valid_sampler = SubsetRandomSampler(indices[-args.batch_size:])
+train_dataset = Subset(train_dataset, indices[:-args.batch_size])
+valid_dataset = Subset(valid_dataset, indices[-args.batch_size:])
 
-train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,
-                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
-                               sampler=train_sampler)
-valid_data_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False,
-                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
-                               sampler=valid_sampler)
+train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
+                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums)
+valid_data_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=True,
+                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums)
 
 # NN model
 model = TinyWav2Letter(vocab)
-if use_gpu:
-    model = model.cuda()
+model = model.cuda()
 
 # loss function
 # pytorch master already implemented the CTC loss but not usable yet!
@@ -71,6 +73,9 @@ if args.optim == 'sgd':
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay)
 else:
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
+if args.mixed_precision:
+    model, optimizer = amp.initialize(model, optimizer, opt_level='O2', loss_scale=128)
 
 start_timestamp = int(time.time() * 1000)
 start_epoch = 0
@@ -96,7 +101,7 @@ def lr_decay(step, warmup_steps=2000):
     optimizer.param_groups[0]['lr'] = new_lr
 
 
-def train(train_epoch, phase='train'):
+def train(epoch, phase='train'):
     global global_step
 
     lr_decay(global_step)
@@ -128,8 +133,7 @@ def train(train_epoch, phase='train'):
         inputs_length = inputs_length.int()
         targets_length = targets_length.int()
 
-        if use_gpu:
-            inputs = inputs.cuda()
+        inputs = inputs.cuda()
 
         # BxCxT
         outputs = model(inputs)
@@ -147,8 +151,15 @@ def train(train_epoch, phase='train'):
         if phase == 'train':
             lr_decay(global_step)
             optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
+
+            if args.mixed_precision:
+                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
+                # optimizer.clip_master_grads(100)
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
+
             optimizer.step()
 
         global_step += 1
@@ -191,7 +202,7 @@ def train(train_epoch, phase='train'):
         writer.add_scalar('%s/epoch_cer' % phase, (total_cer / valid_dataset_length) * 100, epoch)
         writer.add_scalar('%s/epoch_wer' % phase, (total_wer / valid_dataset_length) * 100, epoch)
 
-        save_checkpoint(logdir, train_epoch, global_step, model, optimizer)
+        save_checkpoint(logdir, epoch, global_step, model, optimizer)
 
     return epoch_loss
 
