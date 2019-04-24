@@ -54,5 +54,12 @@ python eval.py --checkpoint=epoch-0182-fb4c392.pth test.wav
 # will output: 'биний төрсн нуутөр мөнголын сайхон орн'
 ```
 
+It is also possible to use a KenLM binary model. First download it from
+[tugstugi/mongolian-nlp](https://github.com/tugstugi/mongolian-nlp#mongolian-language-model).
+After that, execute:
+```
+python eval.py --checkpoint=path/to/checkpoint --lm=mn_5gram.binary test.wav
+```
+
 ## Contribute
 If you are Mongolian and want to help us, please record your voice on [CommonVoice](https://voice.mozilla.org/mn/speak).

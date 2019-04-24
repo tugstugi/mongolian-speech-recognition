@@ -10,3 +10,4 @@ import_librivox.py
 *.wav
 *.pth
 maxima
+mn_5gram.binary
