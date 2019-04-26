@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, Subset
 from tensorboardX import SummaryWriter
 
 # project imports
-from datasets import collate_fn, Compose, LoadAudio, SpeedChange, ExtractSpeechFeatures
+from datasets import *
 from models import TinyWav2Letter
 from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoint
 
@@ -39,15 +39,15 @@ print('use_gpu', use_gpu)
 if not use_gpu:
     print("GPU not available!")
     sys.exit(1)
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = False
 
 if args.dataset == 'librispeech':
-    from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab, idx2char
+    from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
 else:
-    from datasets.mb_speech import MBSpeech as SpeechDataset, vocab, idx2char
+    from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
 
-train_dataset = SpeechDataset(transform=Compose([LoadAudio(), SpeedChange(), ExtractSpeechFeatures()]))
-valid_dataset = SpeechDataset(transform=Compose([LoadAudio(), ExtractSpeechFeatures()]))
+train_dataset = SpeechDataset(transform=Compose([LoadMelSpectrogram()]))
+valid_dataset = SpeechDataset(transform=Compose([LoadMelSpectrogram()]))
 indices = list(range(len(train_dataset)))
 train_dataset = Subset(train_dataset, indices[:-args.batch_size])
 valid_dataset = Subset(valid_dataset, indices[-args.batch_size:])
@@ -75,7 +75,7 @@ else:
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 if args.mixed_precision:
-    model, optimizer = amp.initialize(model, optimizer, opt_level='O2', loss_scale=128)
+    model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
 
 start_timestamp = int(time.time() * 1000)
 start_epoch = 0

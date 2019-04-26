@@ -35,6 +35,30 @@ class LoadAudio(object):
         return data
 
 
+class LoadMelSpectrogram(object):
+    """Loads a mel spectrogram. It assumes that is saved in the same folder like the wav files."""
+
+    def __call__(self, data):
+        features = np.load(data['fname'].replace('.wav', '.npy'))
+
+        data = {
+            'target': data['text'],
+            'target_length': len(data['text']),
+            'input': features.astype(np.float32),
+            'input_length': features.shape[0]
+        }
+
+        return data
+
+
+class MaskMelSpectrogram(object):
+    def __init__(self, max_scale=0.2, probability=0.5):
+        pass
+
+    def __call__(self, data):
+        return data
+
+
 class SpeedChange(object):
     """Change the speed of an audio. This transform also changes the pitch of the audio."""
 
@@ -54,8 +78,8 @@ class SpeedChange(object):
         return data
 
 
-class ExtractSpeechFeatures(object):
-    """Mel spectrogram."""
+class ComputeMelSpectrogram(object):
+    """Computes the mel spectrogram of an audio."""
 
     def __init__(self, num_features=64):
         self.num_features = num_features

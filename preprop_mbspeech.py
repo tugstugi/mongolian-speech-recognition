@@ -4,10 +4,10 @@ __author__ = 'Erdene-Ochir Tuguldur'
 
 import numpy as np
 from tqdm import *
-from datasets import Compose, LoadAudio, ExtractSpeechFeatures
+from datasets import Compose, LoadAudio, ComputeMelSpectrogram
 from datasets.mb_speech import MBSpeech as SpeechDataset
 
-transform=Compose([LoadAudio(), ExtractSpeechFeatures()])
+transform=Compose([LoadAudio(), ComputeMelSpectrogram()])
 mbspeech = SpeechDataset()
 
 for data in tqdm(mbspeech):

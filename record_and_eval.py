@@ -7,7 +7,7 @@ import argparse
 
 import sounddevice as sd
 
-from datasets import Compose, ExtractSpeechFeatures
+from datasets import Compose, ComputeMelSpectrogram
 from eval import transcribe
 
 
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         'sample_rate': sample_rate,
         'text': ''
     }
-    data = Compose([ExtractSpeechFeatures()])(data)
+    data = Compose([ComputeMelSpectrogram()])(data)
 
     result = transcribe(data, args)
 

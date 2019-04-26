@@ -12,7 +12,8 @@ This repo is partially based on [SeanNaren/deepspeech.pytorch](https://github.co
 1. Install the `warp-ctc`python binding: https://github.com/SeanNaren/warp-ctc
 2. Install remaining dependencies: `pip install -r requirements.txt`
 3. Download the dataset: `python dl_mbspeech.py`
-4. Train: `python train.py`
+4. Pre compute the mel spectrograms: `python preprop_mbspeech.py`
+5. Train: `python train.py`
    * logs for the TensorBoard are saved in the folder `logdir`
 
 ## Results

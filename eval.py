@@ -7,7 +7,7 @@ import argparse
 import torch
 import time
 
-from datasets import Compose, LoadAudio, ExtractSpeechFeatures
+from datasets import Compose, LoadAudio, ComputeMelSpectrogram
 from datasets.mb_speech import vocab
 from models import TinyWav2Letter
 from utils import load_checkpoint
@@ -62,7 +62,7 @@ if __name__ == '__main__':
         'fname': args.audio,
         'text': ''
     }
-    data = Compose([LoadAudio(), ExtractSpeechFeatures()])(data)
+    data = Compose([LoadAudio(), ComputeMelSpectrogram()])(data)
 
     result = transcribe(data, args)
 
