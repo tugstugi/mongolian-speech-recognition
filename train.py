@@ -39,14 +39,16 @@ print('use_gpu', use_gpu)
 if not use_gpu:
     print("GPU not available!")
     sys.exit(1)
-torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.benchmark = True
 
 if args.dataset == 'librispeech':
     from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
 
-train_dataset = SpeechDataset(transform=Compose([LoadMelSpectrogram()]))
+train_dataset = SpeechDataset(transform=Compose([LoadMelSpectrogram(),
+                                                 MaskMelSpectrogram(frequency_mask_max_percentage=0.3,
+                                                                    time_mask_max_percentage=0)]))
 valid_dataset = SpeechDataset(transform=Compose([LoadMelSpectrogram()]))
 indices = list(range(len(train_dataset)))
 train_dataset = Subset(train_dataset, indices[:-args.batch_size])
@@ -81,7 +83,10 @@ start_timestamp = int(time.time() * 1000)
 start_epoch = 0
 global_step = 0
 
-logdir = os.path.join('logdir', args.dataset)
+logname = args.dataset
+if args.comment:
+    logname = "%s_%s" % (logname, args.comment.replace(' ', '_'))
+logdir = os.path.join('logdir', logname)
 writer = SummaryWriter(log_dir=logdir)
 
 # load the last checkpoint if exists

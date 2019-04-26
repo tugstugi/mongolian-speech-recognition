@@ -52,10 +52,26 @@ class LoadMelSpectrogram(object):
 
 
 class MaskMelSpectrogram(object):
-    def __init__(self, max_scale=0.2, probability=0.5):
-        pass
+    """Masking the spectrogram aka SpecAugment."""
+
+    def __init__(self, frequency_mask_max_percentage=0.3, time_mask_max_percentage=0.1, probability=1.0):
+        self.frequency_mask_probability = frequency_mask_max_percentage
+        self.time_mask_probability = time_mask_max_percentage
+        self.probability = probability
 
     def __call__(self, data):
+        if random.random() < self.probability:
+            mel_spectrogram = data['input']
+            tau, nu = mel_spectrogram.shape
+
+            f = random.randint(0, int(self.frequency_mask_probability*nu))
+            f0 = random.randint(0, nu - f)
+            mel_spectrogram[:, f0:f0 + f] = 0
+
+            t = random.randint(0, int(self.time_mask_probability*tau))
+            t0 = random.randint(0, tau - t)
+            mel_spectrogram[t0:t0 + t, :] = 0
+
         return data
 
 
