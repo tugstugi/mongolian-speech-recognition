@@ -43,14 +43,14 @@ class TinyJasper(nn.Module):
             # C(640, 640, 21, dropout_rate=0.3),
         )
         self.B5 = nn.Sequential(
-            # C(640, 768, 25, dropout_rate=0.3),
+            C(640, 768, 25, dropout_rate=0.3),
             # C(768, 768, 25, dropout_rate=0.3),
             # C(768, 768, 25, dropout_rate=0.3),
         )
+        self.r4_5 = nn.Conv1d(512, 768, 1)
 
         self.last_layer = nn.Sequential(
-            # TODO: dropout_rate=0.4 and dilation=2
-            C(640, 896, 29, dropout_rate=0.3, dilation=1),
+            C(768, 896, 29, dropout_rate=0.4, dilation=2),
             C(896, 1024, 1, dropout_rate=0.4),
             C(1024, len(vocab), 1)
         )
@@ -61,8 +61,7 @@ class TinyJasper(nn.Module):
         y = self.B1(y) + y
         y = self.B2(y) + self.r2(y)
         y = self.B3(y) + self.r3(y)
-        y = self.B4(y)
-        y = self.B5(y)
+        y = self.B5(self.B4(y)) + self.r4_5(y)
 
         y = self.last_layer(y)
         return y

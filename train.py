@@ -28,7 +28,7 @@ parser.add_argument("--dataset", choices=['librispeech', 'mbspeech'], default='m
 parser.add_argument("--comment", type=str, default='', help='comment in tensorboard title')
 parser.add_argument("--batch-size", type=int, default=44, help='batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
-parser.add_argument("--weight-decay", type=float, default=0.0, help='weight decay')
+parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
 parser.add_argument("--model", choices=['jasper', 'w2l'], default='jasper', help='choices of optimization algorithms')
 parser.add_argument("--lr", type=float, default=5e-3, help='learning rate for optimization')
@@ -40,7 +40,7 @@ print('use_gpu', use_gpu)
 if not use_gpu:
     print("GPU not available!")
     sys.exit(1)
-torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.benchmark = True
 
 if args.dataset == 'librispeech':
     from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
@@ -48,8 +48,9 @@ else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
 
 train_dataset = SpeechDataset(transform=Compose([LoadMelSpectrogram(),
-                                                 # MaskMelSpectrogram(frequency_mask_max_percentage=0.3,
-                                                 #                   time_mask_max_percentage=0)
+                                                 MaskMelSpectrogram(frequency_mask_max_percentage=0.3,
+                                                                    time_mask_max_percentage=0,
+                                                                    probability=0.5)
                                                  ]))
 valid_dataset = SpeechDataset(transform=Compose([LoadMelSpectrogram()]))
 indices = list(range(len(train_dataset)))
