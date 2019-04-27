@@ -8,9 +8,10 @@ import torch.nn.functional as F
 
 
 class C(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, dropout_rate=0.0):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, activation='relu', dropout_rate=0.0):
         """1D Convolution with the batch normalization and RELU."""
         super(C, self).__init__()
+        self.activation = activation
         self.dropout_rate = dropout_rate
 
         assert 1 <= stride <= 2
@@ -28,9 +29,11 @@ class C(nn.Module):
     def forward(self, x):
         y = self.conv(x)
         y = self.bn(y)
-        y = F.relu(y, inplace=True)
-        # OpenSeq2Seq uses max clamping instead of gradient clipping
-        # y = torch.clamp(y, min=0.0, max=20.0)  # like RELU but clamp at 20.0
+
+        if self.activation == 'relu':
+            y = F.relu(y, inplace=True)
+            # OpenSeq2Seq uses max clamping instead of gradient clipping
+            # y = torch.clamp(y, min=0.0, max=20.0)  # like RELU but clamp at 20.0
 
         if self.dropout_rate > 0:
             y = F.dropout(y, p=self.dropout_rate, training=self.training, inplace=False)

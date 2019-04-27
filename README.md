@@ -4,6 +4,7 @@ This dataset was already successfully used to create a [Mongolian text-to-speech
 
 Because of the dataset size, only cut down versions of the following papers are implemented:
 * [Letter-Based Speech Recognition with Gated ConvNets](https://arxiv.org/abs/1712.09444)
+* [Jasper: An End-to-End Convolutional Neural Acoustic Model](https://arxiv.org/abs/1904.03288)
 * ...
 
 This repo is partially based on [SeanNaren/deepspeech.pytorch](https://github.com/SeanNaren/deepspeech.pytorch).
