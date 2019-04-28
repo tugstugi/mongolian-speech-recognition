@@ -60,8 +60,9 @@ It is also possible to use a KenLM binary model. First download it from
 [tugstugi/mongolian-nlp](https://github.com/tugstugi/mongolian-nlp#mongolian-language-model).
 After that, execute:
 ```
-python eval.py --checkpoint=path/to/checkpoint --lm=mn_5gram.binary test.wav
+python eval.py --checkpoint=path/to/checkpoint --lm=mn_5gram.binary --alpha 0.3 test.wav
 ```
 
 ## Contribute
-If you are Mongolian and want to help us, please record your voice on [CommonVoice](https://voice.mozilla.org/mn/speak).
+If you are Mongolian and want to help us, please record your voice on [Common Voice](https://voice.mozilla.org/mn/speak).
+With a proprietary 50h Mongolian dataset, the current state of the repo reaches around 35% WER.
