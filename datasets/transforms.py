@@ -2,6 +2,7 @@ __author__ = 'Erdene-Ochir Tuguldur'
 
 import random
 import numpy as np
+import cv2
 
 import librosa
 import python_speech_features as psf
@@ -72,6 +73,24 @@ class MaskMelSpectrogram(object):
             t0 = random.randint(0, tau - t)
             mel_spectrogram[t0:t0 + t, :] = 0
 
+        return data
+
+
+class TimeScaleMelSpectrogram(object):
+    """Scaling the spectrogram in the time axis."""
+
+    def __init__(self, max_scale=0.2, probability=0.5):
+        self.max_scale = max_scale
+        self.probability = probability
+
+    def __call__(self, data):
+        if random.random() < self.probability:
+            t, num_features = data['input'].shape
+            scale = random.uniform(-self.max_scale, self.max_scale)
+            data['input'] = cv2.resize(data['input'],
+                                       (num_features, int(round((1 + scale) * t))), interpolation=cv2.INTER_LINEAR)
+            # print(t, int(round((1 + scale) * t)))
+            # print()
         return data
 
 

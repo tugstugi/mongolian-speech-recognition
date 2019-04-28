@@ -6,3 +6,4 @@ tensorboardX
 numpy
 scipy
 python-levenshtein
+opencv-python
