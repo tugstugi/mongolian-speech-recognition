@@ -36,15 +36,24 @@ def transcribe(data, args):
     outputs = outputs.softmax(2).permute(1, 0, 2)
     print("inference time: %.3fs" % (time.time() - t))
 
-    if args.lm:
-        decoder = BeamCTCDecoder(labels=vocab, lm_path='mn_5gram.binary', num_processes=4,
-                                 alpha=args.alpha, beta=args.beta, cutoff_top_n=40, cutoff_prob=1.0, beam_width=1000)
-    else:
-        decoder = GreedyDecoder(labels=vocab)
-
+    greedy_decoder = GreedyDecoder(labels=vocab)
     t = time.time()
-    decoded_output, _ = decoder.decode(outputs)
-    print("decode time: %.3fs" % (time.time() - t))
+    decoded_output, _ = greedy_decoder.decode(outputs)
+    print("decode time without LM: %.3fs" % (time.time() - t))
+    print("Predicted without LM:")
+    print(decoded_output[0][0])
+
+    if args.lm:
+        beam_ctc_decoder = BeamCTCDecoder(labels=vocab, num_processes=4,
+                                          lm_path='mn_5gram.binary',
+                                          alpha=args.alpha, beta=args.beta,
+                                          cutoff_top_n=40, cutoff_prob=1.0, beam_width=1000)
+        t = time.time()
+        decoded_output, _ = beam_ctc_decoder.decode(outputs)
+        print()
+        print("decode time with LM: %.3fs" % (time.time() - t))
+        print("Predicted with LM:")
+        print(decoded_output[0][0])
 
     return decoded_output[0][0]
 
@@ -64,7 +73,4 @@ if __name__ == '__main__':
     }
     data = Compose([LoadAudio(), ComputeMelSpectrogram()])(data)
 
-    result = transcribe(data, args)
-
-    print("Predicted:")
-    print(result)
+    transcribe(data, args)

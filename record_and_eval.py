@@ -33,7 +33,5 @@ if __name__ == '__main__':
     }
     data = Compose([ComputeMelSpectrogram()])(data)
 
-    result = transcribe(data, args)
+    transcribe(data, args)
 
-    print("Predicted:")
-    print(result)
