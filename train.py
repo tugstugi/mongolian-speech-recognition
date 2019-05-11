@@ -12,7 +12,7 @@ from tqdm import *
 from apex import amp
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, ConcatDataset
 
 from tensorboardX import SummaryWriter
 
@@ -30,7 +30,7 @@ parser.add_argument("--batch-size", type=int, default=44, help='batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
-parser.add_argument("--model", choices=['jasper', 'w2l'], default='jasper', help='choices of optimization algorithms')
+parser.add_argument("--model", choices=['jasper', 'w2l'], default='w2l', help='choices of optimization algorithms')
 parser.add_argument("--lr", type=float, default=5e-3, help='learning rate for optimization')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
 args = parser.parse_args()
@@ -42,20 +42,30 @@ if not use_gpu:
     sys.exit(1)
 torch.backends.cudnn.benchmark = True
 
+
+train_transform = Compose([LoadMelSpectrogram(),
+                           TimeScaleMelSpectrogram(probability=0.5),
+                           MaskMelSpectrogram(frequency_mask_max_percentage=0.3, time_mask_max_percentage=0,
+                                              probability=0.5)
+                           ])
+valid_transform = Compose([LoadMelSpectrogram()])
+
 if args.dataset == 'librispeech':
     from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
+    max_duration = 16.7
+    train_dataset = ConcatDataset([
+        SpeechDataset(name='train-clean-100', max_duration=max_duration, transform=train_transform),
+        SpeechDataset(name='train-clean-360', max_duration=max_duration, transform=train_transform),
+        SpeechDataset(name='train-other-500', max_duration=max_duration, transform=train_transform)
+    ])
+    valid_dataset = SpeechDataset(name='dev-clean', transform=valid_transform)
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
-
-train_dataset = SpeechDataset(transform=Compose([LoadMelSpectrogram(),
-                                                 MaskMelSpectrogram(frequency_mask_max_percentage=0.3,
-                                                                    time_mask_max_percentage=0,
-                                                                    probability=0.5)
-                                                 ]))
-valid_dataset = SpeechDataset(transform=Compose([LoadMelSpectrogram()]))
-indices = list(range(len(train_dataset)))
-train_dataset = Subset(train_dataset, indices[:-args.batch_size])
-valid_dataset = Subset(valid_dataset, indices[-args.batch_size:])
+    train_dataset = SpeechDataset(transform=train_transform)
+    valid_dataset = SpeechDataset(transform=valid_transform)
+    indices = list(range(len(train_dataset)))
+    train_dataset = Subset(train_dataset, indices[:-args.batch_size])
+    valid_dataset = Subset(valid_dataset, indices[-args.batch_size:])
 
 train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
                                collate_fn=collate_fn, num_workers=args.dataload_workers_nums)
