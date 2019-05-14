@@ -147,3 +147,17 @@ class ComputeMelSpectrogram(object):
         }
 
         return data
+
+
+class ResizeMelSpectrogram(object):
+    """Resize the mel spectrogram."""
+
+    def __init__(self, num_features=32):
+        self.num_features = num_features
+
+    def __call__(self, data):
+        features = data['input']
+        t, _ = features.shape
+        features = cv2.resize(features, (self.num_features, t), interpolation=cv2.INTER_LINEAR)
+        data['input'] = features
+        return data

@@ -30,7 +30,8 @@ parser.add_argument("--batch-size", type=int, default=44, help='batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
-parser.add_argument("--model", choices=['jasper', 'w2l'], default='w2l', help='choices of optimization algorithms')
+parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='w2l',
+                    help='choices of optimization algorithms')
 parser.add_argument("--lr", type=float, default=5e-3, help='learning rate for optimization')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
 args = parser.parse_args()
@@ -42,7 +43,6 @@ if not use_gpu:
     sys.exit(1)
 torch.backends.cudnn.benchmark = True
 
-
 train_transform = Compose([LoadMelSpectrogram(),
                            TimeScaleMelSpectrogram(probability=0.5),
                            MaskMelSpectrogram(frequency_mask_max_percentage=0.3, time_mask_max_percentage=0,
@@ -52,6 +52,7 @@ valid_transform = Compose([LoadMelSpectrogram()])
 
 if args.dataset == 'librispeech':
     from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
+
     max_duration = 16.7
     train_dataset = ConcatDataset([
         SpeechDataset(name='train-clean-100', max_duration=max_duration, transform=train_transform),
@@ -61,6 +62,7 @@ if args.dataset == 'librispeech':
     valid_dataset = SpeechDataset(name='dev-clean', transform=valid_transform)
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
+
     train_dataset = SpeechDataset(transform=train_transform)
     valid_dataset = SpeechDataset(transform=valid_transform)
     indices = list(range(len(train_dataset)))
@@ -75,8 +77,13 @@ valid_data_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffl
 # NN model
 if args.model == 'jasper':
     model = TinyJasper(vocab)
-else:
+elif args.model == 'w2l':
     model = TinyWav2Letter(vocab)
+else:
+    model = Speech2TextCRNN(vocab)
+    # scale down mel spectrogram
+    train_transform.transforms.append(ResizeMelSpectrogram())
+    valid_transform.transforms.append(ResizeMelSpectrogram())
 model = model.cuda()
 
 # loss function
@@ -142,12 +149,8 @@ def train(epoch, phase='train'):
         inputs_length, targets_length = batch['input_length'], batch['target_length']
         inputs = inputs.permute(0, 2, 1)
 
-        B, N = targets.size()  # batch size and text count
-        _, n_feature, T = inputs.size()  # number of feature bins and time
-
-        targets.requires_grad = False
-        targets_length.requires_grad = False
-        inputs_length.requires_grad = False
+        B, n_feature, T = inputs.size()  # number of feature bins and time
+        _, N = targets.size()  # batch size and text count
 
         # warpctc_pytorch wants Int instead of Long!
         targets = targets.int()
@@ -158,8 +161,12 @@ def train(epoch, phase='train'):
 
         # BxCxT
         outputs = model(inputs)
-        # make TxBxC
-        outputs = outputs.permute(2, 0, 1)
+        if args.model in ['jasper', 'w2l']:
+            # make TxBxC
+            outputs = outputs.permute(2, 0, 1)
+        else:
+            # TODO: avoids NaN on CRNN
+            inputs_length = torch.IntTensor([outputs.size(0)] * B)
 
         # warpctc_pytorch wants one dimensional vector without blank elements
         targets_1d = targets.view(-1)
