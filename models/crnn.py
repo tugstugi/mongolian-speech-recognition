@@ -63,7 +63,8 @@ class Speech2TextCRNN(nn.Module):
         convRelu(0)
         cnn.add_module('pooling{0}'.format(0), nn.MaxPool2d(2, 2))  # 64x16x64
         convRelu(1)
-        cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d(2, 2))  # 128x8x32
+        cnn.add_module('pooling{0}'.format(1),
+                       nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 128x8x32
         convRelu(2, True)
         convRelu(3)
         cnn.add_module('pooling{0}'.format(2),
