@@ -10,6 +10,7 @@ import argparse
 from tqdm import *
 
 from apex import amp
+import albumentations as A
 
 import torch
 from torch.utils.data import DataLoader, Subset, ConcatDataset
@@ -24,7 +25,7 @@ from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoin
 from decoder import GreedyDecoder
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--dataset", choices=['librispeech', 'mbspeech'], default='mbspeech', help='dataset name')
+parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech'], default='bolorspeech', help='dataset name')
 parser.add_argument("--comment", type=str, default='', help='comment in tensorboard title')
 parser.add_argument("--batch-size", type=int, default=44, help='batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
@@ -44,9 +45,16 @@ if not use_gpu:
 torch.backends.cudnn.benchmark = True
 
 train_transform = Compose([LoadMelSpectrogram(),
-                           TimeScaleMelSpectrogram(probability=0.5),
-                           MaskMelSpectrogram(frequency_mask_max_percentage=0.3, time_mask_max_percentage=0,
-                                              probability=0.5)
+                           ApplyAlbumentations(A.Compose([
+                               # A.OneOf([A.Blur(blur_limit=3), A.MedianBlur(blur_limit=3)]),  # sometimes hurts, sometimes OK
+                               A.Cutout(num_holes=10)  # dataset dependent, longer audios more cutout
+                           ], p=1)),
+                           TimeScaleMelSpectrogram(max_scale=0.1, probability=0.5),  # only tiny effect
+                           MaskMelSpectrogram(frequency_mask_max_percentage=0.3,
+                                              time_mask_max_percentage=0.1,
+                                              probability=1),
+                           ShiftMelAlongTimeAxis(time_shift_max_percentage=0.05, probability=0.7),
+                           ShiftMelAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7)
                            ])
 valid_transform = Compose([LoadMelSpectrogram()])
 
@@ -60,6 +68,12 @@ if args.dataset == 'librispeech':
         SpeechDataset(name='train-other-500', max_duration=max_duration, transform=train_transform)
     ])
     valid_dataset = SpeechDataset(name='dev-clean', transform=valid_transform)
+elif args.dataset == 'bolorspeech':
+    from datasets.bolor_speech import BolorSpeech as SpeechDataset, vocab
+
+    max_duration = 16.7
+    train_dataset = SpeechDataset(name='train', max_duration=max_duration, transform=train_transform)
+    valid_dataset = SpeechDataset(name='test', transform=valid_transform)
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
 
@@ -81,9 +95,10 @@ elif args.model == 'w2l':
     model = TinyWav2Letter(vocab)
 else:
     model = Speech2TextCRNN(vocab)
-    # scale down mel spectrogram
-    train_transform.transforms.append(ResizeMelSpectrogram())
-    valid_transform.transforms.append(ResizeMelSpectrogram())
+    if args.dataset != 'bolorspeech':  # BolorSpeech is already n_features=32
+        # scale down mel spectrogram
+        train_transform.transforms.append(ResizeMelSpectrogram())
+        valid_transform.transforms.append(ResizeMelSpectrogram())
 model = model.cuda()
 
 # loss function

@@ -73,6 +73,70 @@ class MaskMelSpectrogram(object):
             t0 = random.randint(0, tau - t)
             mel_spectrogram[t0:t0 + t, :] = 0
 
+            data['input'] = mel_spectrogram
+
+        return data
+
+
+class ShiftMelAlongTimeAxis(object):
+    """Shift the spectrogram along the time axis."""
+
+    def __init__(self, time_shift_max_percentage=0.1, probability=0.5):
+        self.time_shift_max_percentage = time_shift_max_percentage
+        self.probability = probability
+
+    def __call__(self, data):
+        if random.random() < self.probability:
+            mel_spectrogram = data['input']
+            tau, nu = mel_spectrogram.shape
+
+            d = random.randint(-int(self.time_shift_max_percentage * tau), int(self.time_shift_max_percentage * tau))
+            if d != 0:
+                mel_spectrogram = np.roll(mel_spectrogram, d, 0)
+                if d > 0:
+                    mel_spectrogram[:d, :] = 0
+                else:
+                    mel_spectrogram[d:, :] = 0
+
+            data['input'] = mel_spectrogram
+
+        return data
+
+
+class ShiftMelAlongFrequencyAxis(object):
+    """Shift the spectrogram along the frequency axis."""
+
+    def __init__(self, frequency_shift_max_percentage=0.1, probability=0.5):
+        self.frequency_shift_max_percentage = frequency_shift_max_percentage
+        self.probability = probability
+
+    def __call__(self, data):
+        if random.random() < self.probability:
+            mel_spectrogram = data['input']
+            tau, nu = mel_spectrogram.shape
+
+            d = random.randint(-int(self.frequency_shift_max_percentage * nu),
+                               int(self.frequency_shift_max_percentage * nu))
+            if d != 0:
+                mel_spectrogram = np.roll(mel_spectrogram, d, 1)
+                if d > 0:
+                    mel_spectrogram[:, :d] = 0
+                else:
+                    mel_spectrogram[:, d:] = 0
+
+            data['input'] = mel_spectrogram
+
+        return data
+
+
+class ApplyAlbumentations(object):
+    """Apply transforms from Albumentations."""
+
+    def __init__(self, a_transform):
+        self.a_transform = a_transform
+
+    def __call__(self, data):
+        data['input'] = self.a_transform(image=data['input'])['image']
         return data
 
 

@@ -7,3 +7,4 @@ numpy
 scipy
 python-levenshtein
 opencv-python
+albumentations

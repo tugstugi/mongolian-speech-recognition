@@ -1,4 +1,4 @@
-"""Data loader for the LibriSpeech dataset. See: http://www.openslr.org/12/"""
+"""Data loader for the BolorSpeech dataset."""
 __author__ = 'Erdene-Ochir Tuguldur'
 
 import os
@@ -7,17 +7,14 @@ import csv
 import numpy as np
 from torch.utils.data import Dataset
 
-
-vocab = "B abcdefghijklmnopqrstuvwxyz'"  # B: blank
-char2idx = {char: idx for idx, char in enumerate(vocab)}
-idx2char = {idx: char for idx, char in enumerate(vocab)}
+from .mb_speech import vocab, char2idx, idx2char, convert_text
 
 
 def convert_text(text):
     return [char2idx[char] for char in text if char != 'B']
 
 
-def read_metadata(metadata_file, max_duration):
+def read_metadata(datasets_path, metadata_file, max_duration):
     fnames, text_lengths, texts = [], [], []
 
     reader = csv.reader(open(metadata_file, 'rt'))
@@ -29,20 +26,20 @@ def read_metadata(metadata_file, max_duration):
                 continue
         except ValueError:
             continue
-        fnames.append(fname)
+        fnames.append(os.path.join(datasets_path, fname))
         texts.append(np.array(convert_text(text)))
 
     return fnames, texts
 
 
-class LibriSpeech(Dataset):
+class BolorSpeech(Dataset):
 
-    def __init__(self, name='dev-clean', max_duration=16.7, transform=None):
+    def __init__(self, name='train', max_duration=16.7, transform=None):
         self.transform = transform
 
         datasets_path = os.path.dirname(os.path.realpath(__file__))
-        csv_file = os.path.join(datasets_path, 'librivox-%s.csv' % name)
-        self.fnames, self.texts = read_metadata(csv_file, max_duration)
+        csv_file = os.path.join(datasets_path, 'bolor-%s.csv' % name)
+        self.fnames, self.texts = read_metadata(datasets_path, csv_file, max_duration)
 
     def __getitem__(self, index):
         data = {
@@ -57,3 +54,7 @@ class LibriSpeech(Dataset):
 
     def __len__(self):
         return len(self.fnames)
+
+
+
+
