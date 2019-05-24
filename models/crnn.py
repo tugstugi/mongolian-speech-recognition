@@ -7,6 +7,9 @@ Original model is here: https://github.com/meijieru/crnn.pytorch/blob/master/mod
 import torch.nn as nn
 
 
+__all__ = ['Speech2TextCRNN']
+
+
 class BidirectionalLSTM(nn.Module):
 
     def __init__(self, nIn, nHidden, nOut):
@@ -24,7 +27,6 @@ class BidirectionalLSTM(nn.Module):
         output = output.view(T, b, -1)
 
         return output
-
 
 
 class Speech2TextCRNN(nn.Module):

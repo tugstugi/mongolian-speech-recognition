@@ -5,7 +5,7 @@ __pycache__
 *.ipynb
 *.pyc
 logdir/
-test.py
+test*.py
 import_librivox.py
 *.wav
 *.pth

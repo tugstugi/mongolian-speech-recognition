@@ -32,7 +32,7 @@ parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
 parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='w2l',
-                    help='choices of optimization algorithms')
+                    help='choices of neural network')
 parser.add_argument("--lr", type=float, default=5e-3, help='learning rate for optimization')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
 args = parser.parse_args()
@@ -95,10 +95,9 @@ elif args.model == 'w2l':
     model = TinyWav2Letter(vocab)
 else:
     model = Speech2TextCRNN(vocab)
-    if args.dataset != 'bolorspeech':  # BolorSpeech is already n_features=32
-        # scale down mel spectrogram
-        train_transform.transforms.append(ResizeMelSpectrogram())
-        valid_transform.transforms.append(ResizeMelSpectrogram())
+    # scale down mel spectrogram
+    train_transform.transforms.append(ResizeMelSpectrogram())
+    valid_transform.transforms.append(ResizeMelSpectrogram())
 model = model.cuda()
 
 # loss function

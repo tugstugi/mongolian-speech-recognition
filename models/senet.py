@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-__all__ = ['se_resnext29_8x64d', 'se_resnext29_16x64d', 'speech2TextSeResNext']
+__all__ = ['se_resnext29_8x64d', 'se_resnext29_16x64d', 'Speech2TextSeResNext']
 
 
 class SEModule(nn.Module):
@@ -167,12 +167,12 @@ def se_resnext29_16x64d(num_classes):
     return SeResNeXt(cardinality=16, depth=29, num_classes=num_classes, base_width=64)
 
 
-def speech2TextSeResNext(vocab):
+def Speech2TextSeResNext(vocab):
     return SeResNeXt(cardinality=8, depth=20, num_classes=len(vocab), base_width=64, expansion=4)
 
 
 if __name__ == '__main__':
-    model = speech2TextSeResNext(list('0123456789'))
+    model = Speech2TextSeResNext(list('0123456789'))
     import torch
 
     inputs = torch.ones(111, 32, 100)

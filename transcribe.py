@@ -7,9 +7,10 @@ import argparse
 import torch
 import time
 
-from datasets import Compose, LoadAudio, ComputeMelSpectrogram
+from datasets import Compose, LoadAudio, ComputeMelSpectrogram, ResizeMelSpectrogram
 from datasets.mb_speech import vocab
-from models import TinyWav2Letter
+from models import *
+from models.crnn import *
 from utils import load_checkpoint
 
 from decoder import *
@@ -19,7 +20,14 @@ def transcribe(data, args):
     use_gpu = torch.cuda.is_available()
     print('use_gpu:', use_gpu)
 
-    model = TinyWav2Letter(vocab)
+    if args.model == 'jasper':
+        model = TinyJasper(vocab)
+    elif args.model == 'w2l':
+        model = TinyWav2Letter(vocab)
+    else:
+        model = Speech2TextCRNN(vocab)
+        # scale down mel spectrogram
+        data = ResizeMelSpectrogram()(data)
     load_checkpoint(args.checkpoint, model, optimizer=None, use_gpu=use_gpu)
     model.eval()
     model.cuda() if use_gpu else model.cpu()
@@ -32,7 +40,8 @@ def transcribe(data, args):
     torch.set_grad_enabled(False)
     t = time.time()
     outputs = model(inputs)
-    outputs = outputs.permute(2, 0, 1)
+    if args.model in ['jasper', 'w2l']:
+        outputs = outputs.permute(2, 0, 1)
     outputs = outputs.softmax(2).permute(1, 0, 2)
     print("inference time: %.3fs" % (time.time() - t))
 
@@ -61,6 +70,8 @@ def transcribe(data, args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--checkpoint", type=str, required=True, help='checkpoint file to test')
+    parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='w2l',
+                        help='choices of neural network')
     parser.add_argument("--lm", type=str, required=False, help='link to KenLM 5-gram binary language model')
     parser.add_argument("--alpha", type=float, default=0.3, help='alpha for CTC decode')
     parser.add_argument("--beta", type=float, default=1.85, help='beta for CTC decode')
