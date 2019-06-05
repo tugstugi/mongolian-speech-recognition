@@ -5,7 +5,6 @@ import numpy as np
 import cv2
 
 import librosa
-import python_speech_features as psf
 
 
 class Compose(object):
@@ -36,24 +35,48 @@ class LoadAudio(object):
         return data
 
 
-class LoadMelSpectrogram(object):
-    """Loads a mel spectrogram. It assumes that is saved in the same folder like the wav files."""
+class LoadMagSpectrogram(object):
+    """Loads a spectrogram. It assumes that is saved in the same folder like the wav files."""
+
+    def __init__(self, sample_rate=16000, n_fft=512):
+        self.sample_rate = sample_rate
+        self.n_fft = 512
 
     def __call__(self, data):
+        # F,T
         features = np.load(data['fname'].replace('.wav', '.npy'))
 
         data = {
             'target': data['text'],
             'target_length': len(data['text']),
             'input': features.astype(np.float32),
-            'input_length': features.shape[0]
+            'input_length': features.shape[1],
+            'n_fft': self.n_fft,
+            'sample_rate': self.sample_rate,
         }
 
         return data
 
 
-class MaskMelSpectrogram(object):
-    """Masking the spectrogram aka SpecAugment."""
+class AddNoiseToMagSpectrogram(object):
+    """Add noise to a mag spectrogram."""
+
+    def __init__(self, noise, probability=0.5):
+        self.probability = probability
+        self.noise = noise
+
+    def __call__(self, data):
+        if random.random() < self.probability:
+            spectrogram = data['input']
+            _, t = spectrogram.shape
+            dither = random.uniform(1e-5, 1e-3)
+            spectrogram = spectrogram + dither * self.noise.get_random_noise(t)
+            data['input'] = spectrogram.astype(np.float32)
+        return data
+
+
+class MaskSpectrogram(object):
+    """Masking a spectrogram aka SpecAugment."""
 
     def __init__(self, frequency_mask_max_percentage=0.3, time_mask_max_percentage=0.1, probability=1.0):
         self.frequency_mask_probability = frequency_mask_max_percentage
@@ -62,69 +85,75 @@ class MaskMelSpectrogram(object):
 
     def __call__(self, data):
         if random.random() < self.probability:
-            mel_spectrogram = data['input']
-            tau, nu = mel_spectrogram.shape
+            spectrogram = data['input']
+            nu, tau = spectrogram.shape
 
             f = random.randint(0, int(self.frequency_mask_probability*nu))
             f0 = random.randint(0, nu - f)
-            mel_spectrogram[:, f0:f0 + f] = 0
+            spectrogram[f0:f0 + f, :] = 0
 
             t = random.randint(0, int(self.time_mask_probability*tau))
             t0 = random.randint(0, tau - t)
-            mel_spectrogram[t0:t0 + t, :] = 0
+            spectrogram[:, t0:t0 + t] = 0
 
-            data['input'] = mel_spectrogram
+            data['input'] = spectrogram
 
         return data
 
 
-class ShiftMelAlongTimeAxis(object):
-    """Shift the spectrogram along the time axis."""
+class ShiftSpectrogramAlongTimeAxis(object):
+    """Shift a spectrogram along the time axis."""
 
     def __init__(self, time_shift_max_percentage=0.1, probability=0.5):
         self.time_shift_max_percentage = time_shift_max_percentage
         self.probability = probability
 
+    @staticmethod
+    def shift(spectrogram, d):
+        if d != 0:
+            spectrogram = np.roll(spectrogram, d, 1)
+            if d > 0:
+                spectrogram[:, :d] = 0
+            else:
+                spectrogram[:, d:] = 0
+        return spectrogram
+
     def __call__(self, data):
         if random.random() < self.probability:
-            mel_spectrogram = data['input']
-            tau, nu = mel_spectrogram.shape
+            spectrogram = data['input']
+            nu, tau = spectrogram.shape
 
             d = random.randint(-int(self.time_shift_max_percentage * tau), int(self.time_shift_max_percentage * tau))
-            if d != 0:
-                mel_spectrogram = np.roll(mel_spectrogram, d, 0)
-                if d > 0:
-                    mel_spectrogram[:d, :] = 0
-                else:
-                    mel_spectrogram[d:, :] = 0
-
-            data['input'] = mel_spectrogram
+            data['input'] = self.shift(spectrogram, d)
 
         return data
 
 
-class ShiftMelAlongFrequencyAxis(object):
-    """Shift the spectrogram along the frequency axis."""
+class ShiftSpectrogramAlongFrequencyAxis(object):
+    """Shift a spectrogram along the frequency axis."""
 
     def __init__(self, frequency_shift_max_percentage=0.1, probability=0.5):
         self.frequency_shift_max_percentage = frequency_shift_max_percentage
         self.probability = probability
 
+    @staticmethod
+    def shift(spectrogram, d):
+        if d != 0:
+            spectrogram = np.roll(spectrogram, d, 0)
+            if d > 0:
+                spectrogram[:d, :] = 0
+            else:
+                spectrogram[d:, :] = 0
+        return spectrogram
+
     def __call__(self, data):
         if random.random() < self.probability:
-            mel_spectrogram = data['input']
-            tau, nu = mel_spectrogram.shape
+            spectrogram = data['input']
+            nu, tau = spectrogram.shape
 
             d = random.randint(-int(self.frequency_shift_max_percentage * nu),
                                int(self.frequency_shift_max_percentage * nu))
-            if d != 0:
-                mel_spectrogram = np.roll(mel_spectrogram, d, 1)
-                if d > 0:
-                    mel_spectrogram[:, :d] = 0
-                else:
-                    mel_spectrogram[:, d:] = 0
-
-            data['input'] = mel_spectrogram
+            data['input'] = self.shift(spectrogram, d)
 
         return data
 
@@ -140,8 +169,8 @@ class ApplyAlbumentations(object):
         return data
 
 
-class TimeScaleMelSpectrogram(object):
-    """Scaling the spectrogram in the time axis."""
+class TimeScaleSpectrogram(object):
+    """Scaling a spectrogram in the time axis."""
 
     def __init__(self, max_scale=0.2, probability=0.5):
         self.max_scale = max_scale
@@ -149,12 +178,10 @@ class TimeScaleMelSpectrogram(object):
 
     def __call__(self, data):
         if random.random() < self.probability:
-            t, num_features = data['input'].shape
+            num_features, t = data['input'].shape
             scale = random.uniform(-self.max_scale, self.max_scale)
             data['input'] = cv2.resize(data['input'],
-                                       (num_features, int(round((1 + scale) * t))), interpolation=cv2.INTER_LINEAR)
-            # print(t, int(round((1 + scale) * t)))
-            # print()
+                                       (int(round((1 + scale) * t)), num_features), interpolation=cv2.INTER_LINEAR)
         return data
 
 
@@ -177,51 +204,66 @@ class SpeedChange(object):
         return data
 
 
-class ComputeMelSpectrogram(object):
-    """Computes the mel spectrogram of an audio."""
+class ComputeMagSpectrogram(object):
+    """Computes the magnitude spectrogram of an audio."""
 
-    def __init__(self, num_features=64):
-        self.num_features = num_features
-        self.window_size = 20e-3
-        self.window_stride = 10e-3
+    def __init__(self, n_fft=512, win_length=20e-3, hop_length=10e-3):
+        self.n_fft = n_fft
+        self.win_length = win_length
+        self.hop_length = hop_length
+
+    @staticmethod
+    def preemphasis(samples, coeff=0.97):
+        return np.append(samples[0], samples[1:] - coeff * samples[:-1])
 
     def __call__(self, data):
         samples = data['samples']
         sample_rate = data['sample_rate']
 
-        # T, F
-        features = psf.logfbank(signal=samples,
-                                samplerate=sample_rate,
-                                winlen=self.window_size,
-                                winstep=self.window_stride,
-                                nfilt=self.num_features,
-                                nfft=512,
-                                lowfreq=0, highfreq=sample_rate / 2,
-                                preemph=0.97)
-        # normalize
-        m = np.mean(features)
-        s = np.std(features)
-        features = (features - m) / s
+        samples = self.preemphasis(samples, coeff=0.97)
+        stft = librosa.stft(samples, n_fft=self.n_fft,
+                            win_length=int(self.win_length*sample_rate),
+                            hop_length=int(self.hop_length*sample_rate),
+                            center=False)
+        # F, T
+        features = np.abs(stft)
 
         data = {
             'target': data['text'],
             'target_length': len(data['text']),
             'input': features.astype(np.float32),
-            'input_length': features.shape[0]
+            'input_length': features.shape[1],
+            'n_fft': self.n_fft,
+            'sample_rate': sample_rate
         }
 
         return data
 
 
-class ResizeMelSpectrogram(object):
-    """Resize the mel spectrogram."""
+class ComputeMelSpectrogramFromMagSpectrogram(object):
+    """Computes the mel spectrogram from a magnitude spectrogram."""
 
     def __init__(self, num_features=32):
-        self.num_features = num_features
+        self.num_features = 32
+        self.mel_basis = None
 
     def __call__(self, data):
-        features = data['input']
-        t, _ = features.shape
-        features = cv2.resize(features, (self.num_features, t), interpolation=cv2.INTER_LINEAR)
-        data['input'] = features
+        if self.mel_basis is None:
+            sample_rate = data['sample_rate']
+            self.mel_basis = librosa.filters.mel(sr=sample_rate,
+                                                 n_fft=data['n_fft'],
+                                                 n_mels=self.num_features,
+                                                 fmin=0,
+                                                 fmax=sample_rate/2,
+                                                 htk=False)
+        mag = data['input']
+        # features = librosa.power_to_db(np.dot(self.mel_basis, mag*mag), ref=np.max)
+        features = np.log(np.dot(self.mel_basis, mag*mag) + 1e-20)
+
+        # normalize
+        m = np.mean(features)
+        s = np.std(features)
+        features = (features - m) / s
+
+        data['input'] = features.astype(np.float32)
         return data

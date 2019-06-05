@@ -8,3 +8,4 @@ scipy
 python-levenshtein
 opencv-python
 albumentations
+acoustics

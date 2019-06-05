@@ -44,19 +44,21 @@ if not use_gpu:
     sys.exit(1)
 torch.backends.cudnn.benchmark = True
 
-train_transform = Compose([LoadMelSpectrogram(),
+train_transform = Compose([LoadMagSpectrogram(),
+                           AddNoiseToMagSpectrogram(noise=NoiseDataset(), probability=0.5),
+                           ShiftSpectrogramAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7),
+                           ComputeMelSpectrogramFromMagSpectrogram(),
                            ApplyAlbumentations(A.Compose([
                                # A.OneOf([A.Blur(blur_limit=3), A.MedianBlur(blur_limit=3)]),  # sometimes hurts, sometimes OK
                                A.Cutout(num_holes=10)  # dataset dependent, longer audios more cutout
                            ], p=1)),
-                           TimeScaleMelSpectrogram(max_scale=0.1, probability=0.5),  # only tiny effect
-                           MaskMelSpectrogram(frequency_mask_max_percentage=0.3,
-                                              time_mask_max_percentage=0.1,
-                                              probability=1),
-                           ShiftMelAlongTimeAxis(time_shift_max_percentage=0.05, probability=0.7),
-                           ShiftMelAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7)
+                           TimeScaleSpectrogram(max_scale=0.1, probability=0.5),  # only tiny effect
+                           MaskSpectrogram(frequency_mask_max_percentage=0.3,
+                                           time_mask_max_percentage=0.1,
+                                           probability=1),
+                           ShiftSpectrogramAlongTimeAxis(time_shift_max_percentage=0.05, probability=0.7),
                            ])
-valid_transform = Compose([LoadMelSpectrogram()])
+valid_transform = Compose([LoadMagSpectrogram(), ComputeMelSpectrogramFromMagSpectrogram()])
 
 if args.dataset == 'librispeech':
     from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
@@ -72,7 +74,9 @@ elif args.dataset == 'bolorspeech':
     from datasets.bolor_speech import BolorSpeech as SpeechDataset, vocab
 
     max_duration = 16.7
-    train_dataset = SpeechDataset(name='train', max_duration=max_duration, transform=train_transform)
+    train_dataset = ConcatDataset([
+        SpeechDataset(name='train', max_duration=max_duration, transform=train_transform),
+        NoiseDataset(size=5000, transform=train_transform)])
     valid_dataset = SpeechDataset(name='test', transform=valid_transform)
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
@@ -95,9 +99,6 @@ elif args.model == 'w2l':
     model = TinyWav2Letter(vocab)
 else:
     model = Speech2TextCRNN(vocab)
-    # scale down mel spectrogram
-    train_transform.transforms.append(ResizeMelSpectrogram())
-    valid_transform.transforms.append(ResizeMelSpectrogram())
 model = model.cuda()
 
 # loss function
@@ -161,7 +162,7 @@ def train(epoch, phase='train'):
     for batch in pbar:
         inputs, targets = batch['input'], batch['target']
         inputs_length, targets_length = batch['input_length'], batch['target_length']
-        inputs = inputs.permute(0, 2, 1)
+        # inputs = inputs.permute(0, 2, 1)
 
         B, n_feature, T = inputs.size()  # number of feature bins and time
         _, N = targets.size()  # batch size and text count

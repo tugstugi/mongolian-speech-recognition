@@ -14,7 +14,7 @@ def collate_fn(batch):
     for row in batch:
         for key in keys:
             if not np.isscalar(row[key]):
-                max_lengths[key] = max(max_lengths[key], row[key].shape[0])
+                max_lengths[key] = max(max_lengths[key], row[key].shape[-1])
 
     # pad to the max lengths
     for row in batch:
@@ -23,11 +23,11 @@ def collate_fn(batch):
                 array = row[key]
                 dim = len(array.shape)
                 assert dim == 1 or dim == 2
-                # TODO: because of pre processing, later we want to have (n_mels, T)
                 if dim == 1:
-                    padded_array = np.pad(array, (0, max_lengths[key] - array.shape[0]), mode='constant')
+                    padded_array = np.pad(array, (0, max_lengths[key] - array.shape[-1]), mode='constant')
                 else:
-                    padded_array = np.pad(array, ((0, max_lengths[key] - array.shape[0]), (0, 0)), mode='constant')
+                    # padded_array = np.pad(array, ((0, max_lengths[key] - array.shape[0]), (0, 0)), mode='constant')
+                    padded_array = np.pad(array, ((0, 0), (0, max_lengths[key] - array.shape[-1])), mode='constant')
                 collated_batch[key].append(padded_array)
             else:
                 collated_batch[key].append(row[key])
