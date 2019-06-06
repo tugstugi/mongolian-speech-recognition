@@ -7,7 +7,7 @@ import argparse
 import torch
 import time
 
-from datasets import Compose, LoadAudio, ComputeMelSpectrogram, ResizeMelSpectrogram
+from datasets import *
 from datasets.mb_speech import vocab
 from models import *
 from models.crnn import *
@@ -26,14 +26,12 @@ def transcribe(data, args):
         model = TinyWav2Letter(vocab)
     else:
         model = Speech2TextCRNN(vocab)
-        # scale down mel spectrogram
-        data = ResizeMelSpectrogram()(data)
     load_checkpoint(args.checkpoint, model, optimizer=None, use_gpu=use_gpu)
     model.eval()
     model.cuda() if use_gpu else model.cpu()
 
     inputs = torch.from_numpy(data['input']).unsqueeze(0)
-    inputs = inputs.permute(0, 2, 1)
+    # inputs = inputs.permute(0, 2, 1)
     if use_gpu:
         inputs = inputs.cuda()
 
@@ -82,6 +80,6 @@ if __name__ == '__main__':
         'fname': args.audio,
         'text': ''
     }
-    data = Compose([LoadAudio(), ComputeMelSpectrogram()])(data)
+    data = Compose([LoadAudio(), ComputeMagSpectrogram(), ComputeMelSpectrogramFromMagSpectrogram()])(data)
 
     transcribe(data, args)

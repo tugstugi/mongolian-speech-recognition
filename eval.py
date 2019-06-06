@@ -31,7 +31,7 @@ if __name__ == '__main__':
     parser.add_argument("--beta", type=float, default=1.85, help='beta for CTC decode')
     args = parser.parse_args()
 
-    valid_transform = Compose([LoadMelSpectrogram()])
+    valid_transform = Compose([LoadMagSpectrogram(), ComputeMelSpectrogramFromMagSpectrogram()])
     if args.dataset == 'librispeech':
         from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
 
@@ -53,8 +53,6 @@ if __name__ == '__main__':
         model = TinyWav2Letter(vocab)
     else:
         model = Speech2TextCRNN(vocab)
-        # scale down mel spectrogram
-        valid_transform.transforms.append(ResizeMelSpectrogram())
     load_checkpoint(args.checkpoint, model, optimizer=None, use_gpu=use_gpu)
     model.eval()
     model.cuda() if use_gpu else model.cpu()
@@ -78,7 +76,8 @@ if __name__ == '__main__':
     t = time.time()
     pbar = tqdm(valid_data_loader, unit="audios", unit_scale=valid_data_loader.batch_size)
     for batch in pbar:
-        inputs, targets = batch['input'].permute(0, 2, 1), batch['target']
+        inputs, targets = batch['input'], batch['target']
+        # inputs = inputs.permute(0, 2, 1)
         if use_gpu:
             inputs = inputs.cuda()
             targets = targets.cuda()
