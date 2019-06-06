@@ -7,8 +7,11 @@ from acoustics.generator import white, pink, violet, blue, brown
 from torch.utils.data import Dataset
 from .transforms import Compose, ComputeMagSpectrogram
 
+vocab = "B "  # B: blank
+char2idx = {char: idx for idx, char in enumerate(vocab)}
 
-class NoiseDataset(Dataset):
+
+class ColoredNoiseDataset(Dataset):
 
     def __init__(self, size=1000, sample_rate=16000, transform=None):
         self.size = size
@@ -38,9 +41,10 @@ class NoiseDataset(Dataset):
 
     def __getitem__(self, index):
         features = self.get_random_noise(random.randint(200, 500))
+        target = [char2idx[' ']]  # only a single whitespace because it is noise
         data = {
-            'target': np.array([1], dtype=np.int),
-            'target_length': 1,
+            'target': np.array(target, dtype=np.int),
+            'target_length': len(target),
             'input': features.astype(np.float32),
             'input_length': features.shape[1],
             'sample_rate': self.sample_rate,

@@ -1,4 +1,5 @@
 from .transforms import *
 from .collate import collate_fn
-from .noise import NoiseDataset
+from .colored_noise import ColoredNoiseDataset
+from .background_sounds import BackgroundSounds
 

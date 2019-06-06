@@ -45,7 +45,7 @@ if not use_gpu:
 torch.backends.cudnn.benchmark = True
 
 train_transform = Compose([LoadMagSpectrogram(),
-                           AddNoiseToMagSpectrogram(noise=NoiseDataset(), probability=0.5),
+                           AddNoiseToMagSpectrogram(noise=ColoredNoiseDataset(), probability=0.5),
                            ShiftSpectrogramAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7),
                            ComputeMelSpectrogramFromMagSpectrogram(),
                            ApplyAlbumentations(A.Compose([
@@ -76,7 +76,9 @@ elif args.dataset == 'bolorspeech':
     max_duration = 16.7
     train_dataset = ConcatDataset([
         SpeechDataset(name='train', max_duration=max_duration, transform=train_transform),
-        NoiseDataset(size=5000, transform=train_transform)])
+        ColoredNoiseDataset(size=5000, transform=train_transform),
+        BackgroundSounds(size=1000, transform=train_transform)
+    ])
     valid_dataset = SpeechDataset(name='test', transform=valid_transform)
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
