@@ -169,6 +169,10 @@ def train(epoch, phase='train'):
         B, n_feature, T = inputs.size()  # number of feature bins and time
         _, N = targets.size()  # batch size and text count
 
+        # mix inputs
+        # index = np.random.permutation(B)
+        # inputs = inputs + random.uniform(0.05, 0.2) * inputs[index]
+
         # warpctc_pytorch wants Int instead of Long!
         targets = targets.int()
         inputs_length = inputs_length.int()
