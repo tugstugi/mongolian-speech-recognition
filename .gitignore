@@ -13,3 +13,6 @@ maxima
 mn_5gram.binary
 test/
 notebooks/
+voice_db.py
+export.py
+trained_models/
