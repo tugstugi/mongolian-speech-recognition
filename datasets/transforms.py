@@ -244,7 +244,7 @@ class ComputeMelSpectrogramFromMagSpectrogram(object):
     """Computes the mel spectrogram from a magnitude spectrogram."""
 
     def __init__(self, num_features=32):
-        self.num_features = 32
+        self.num_features = num_features
         self.mel_basis = None
 
     def __call__(self, data):
