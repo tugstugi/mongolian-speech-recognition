@@ -1,4 +1,4 @@
-An online demo trained with a Mongolian proprietary dataset: [https://demo.soyombo.net](https://demo.soyombo.net).
+An online demo trained with a Mongolian proprietary dataset: [https://chimege.mn/](https://chimege.mn/).
 
 Mongolian speech recognition experiments using 5 hours audio from first 3 books of the
 [Mongolian Bible](https://www.bible.com/mn/versions/1590-2013-ariun-bibli-2013).
