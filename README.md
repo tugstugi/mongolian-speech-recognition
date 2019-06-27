@@ -1,20 +1,18 @@
-An online demo trained with a Mongolian proprietary dataset: [https://chimege.mn/](https://chimege.mn/).
+An online demo trained with a Mongolian proprietary dataset (WER 14%): [https://chimege.mn/](https://chimege.mn/).
 
-Mongolian speech recognition experiments using 5 hours audio from first 3 books of the
-[Mongolian Bible](https://www.bible.com/mn/versions/1590-2013-ariun-bibli-2013).
-This dataset was already successfully used to create a [Mongolian text-to-speech system](https://github.com/tugstugi/pytorch-dc-tts).
-
-Because of the dataset size, only cut down versions of the following papers are implemented:
+In this repo, following papers are implemented:
 * [Letter-Based Speech Recognition with Gated ConvNets](https://arxiv.org/abs/1712.09444)
 * [Jasper: An End-to-End Convolutional Neural Acoustic Model](https://arxiv.org/abs/1904.03288)
-* ...
+* [An End-to-End Trainable Neural Network for Image-based Sequence Recognition and Its Application to Scene Text Recognition](https://arxiv.org/abs/1507.05717)
+  * speech recognition as optical character recognition
+  * for online demo with WER 14%, see [https://chimege.mn/](https://chimege.mn/).
 
 This repo is partially based on [SeanNaren/deepspeech.pytorch](https://github.com/SeanNaren/deepspeech.pytorch).
 
 ## Training
 1. Install the `warp-ctc`python binding: https://github.com/SeanNaren/warp-ctc
 2. Install remaining dependencies: `pip install -r requirements.txt`
-3. Download the dataset: `python dl_mbspeech.py`
+3. Download the Mongolian Bible dataset: `python dl_mbspeech.py`
 4. Pre compute the mel spectrograms: `python preprop_mbspeech.py`
 5. Train: `python train.py`
    * logs for the TensorBoard are saved in the folder `logdir`
@@ -67,4 +65,3 @@ python eval.py --checkpoint=path/to/checkpoint --lm=mn_5gram.binary --alpha 0.3 
 
 ## Contribute
 If you are Mongolian and want to help us, please record your voice on [Common Voice](https://voice.mozilla.org/mn/speak).
-With a proprietary 50h Mongolian dataset, the current state of the repo reaches around 35% WER.
