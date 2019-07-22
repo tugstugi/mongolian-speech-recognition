@@ -29,7 +29,9 @@ else:
     from datasets.bolor_speech import BolorSpeech
     dataset = ConcatDataset([
         BolorSpeech(name='train'),
-        BolorSpeech(name='test')
+        BolorSpeech(name='test'),
+        BolorSpeech(name='demo'),
+        BolorSpeech(name='annotation')
     ])
 
 

@@ -76,6 +76,8 @@ elif args.dataset == 'bolorspeech':
     max_duration = 16.7
     train_dataset = ConcatDataset([
         SpeechDataset(name='train', max_duration=max_duration, transform=train_transform),
+        SpeechDataset(name='annotation', max_duration=max_duration, transform=train_transform),
+        SpeechDataset(name='demo', max_duration=max_duration, transform=train_transform),
         ColoredNoiseDataset(size=5000, transform=train_transform),
         BackgroundSounds(size=1000, transform=train_transform)
     ])
