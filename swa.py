@@ -106,7 +106,11 @@ if __name__ == '__main__':
         ])
     else:
         from datasets.bolor_speech import BolorSpeech, vocab
-        train_dataset = BolorSpeech(name='train', transform=train_transform)
+        train_dataset = ConcatDataset([
+            BolorSpeech(name='train', transform=train_transform),
+            BolorSpeech(name='annotation', transform=train_transform),
+            BolorSpeech(name='demo', transform=train_transform)
+        ])
 
     directory = Path(args.input)
     files = [f for f in directory.iterdir() if f.suffix == ".pth"]
