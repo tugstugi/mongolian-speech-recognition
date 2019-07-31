@@ -63,7 +63,7 @@ if __name__ == '__main__':
     if args.lm:
         t = time.time()
         decoder = BeamCTCDecoder(labels=vocab, num_processes=4,
-                                 lm_path='mn_5gram.binary',
+                                 lm_path=args.lm,
                                  alpha=args.alpha, beta=args.beta,
                                  cutoff_top_n=40, cutoff_prob=1.0, beam_width=1000)
         print("LM load time: %0.2f" % (time.time() - t))
