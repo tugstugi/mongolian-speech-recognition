@@ -12,8 +12,9 @@ char2idx = {char: idx for idx, char in enumerate(vocab)}
 
 class BackgroundSounds(Dataset):
 
-    def __init__(self, size=5000, max_duration=10, transform=None):
+    def __init__(self, size=5000, max_duration=10, transform=None, is_random=True):
         self.size = size
+        self.is_random = is_random
         self.transform = transform
 
         # CSV file contains fname, duration_ms
@@ -35,7 +36,7 @@ class BackgroundSounds(Dataset):
         text = [char2idx[' ']]  # only a single whitespace because it is noise
 
         data = {
-            'fname': random.choice(self.fnames),
+            'fname': random.choice(self.fnames) if self.is_random else self.fnames[index],
             'text': np.array(text, dtype=np.int)
         }
 
@@ -45,7 +46,7 @@ class BackgroundSounds(Dataset):
         return data
 
     def __len__(self):
-        return self.size
+        return self.size if self.is_random else len(self.fnames)
 
 
 if __name__ == '__main__':

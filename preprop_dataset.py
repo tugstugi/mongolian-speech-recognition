@@ -11,7 +11,8 @@ from datasets import Compose, LoadAudio, ComputeMagSpectrogram
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--dataset",
-                    choices=['librispeech', 'mbspeech', 'bolorspeech'], default='bolorspeech', help='dataset name')
+                    choices=['librispeech', 'mbspeech', 'bolorspeech', 'backgroundsounds'],
+                    default='bolorspeech', help='dataset name')
 args = parser.parse_args()
 
 if args.dataset == 'mbspeech':
@@ -25,7 +26,10 @@ elif args.dataset == 'librispeech':
         LibriSpeech(name='train-other-500'),
         LibriSpeech(name='dev-clean',)
     ])
-else:
+elif args.dataset == 'backgroundsounds':
+    from datasets.background_sounds import BackgroundSounds
+    dataset = BackgroundSounds(is_random=False)
+elif args.dataset == 'bolorspeech':
     from datasets.bolor_speech import BolorSpeech
     dataset = ConcatDataset([
         BolorSpeech(name='train'),
@@ -33,6 +37,10 @@ else:
         BolorSpeech(name='demo'),
         BolorSpeech(name='annotation')
     ])
+else:
+    print("unknown dataset!")
+    import sys
+    sys.exit(1)
 
 
 transform=Compose([LoadAudio(), ComputeMagSpectrogram()])
