@@ -25,16 +25,18 @@ from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoin
 from decoder import GreedyDecoder
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech'], default='bolorspeech', help='dataset name')
+parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech'], default='bolorspeech',
+                    help='dataset name')
 parser.add_argument("--comment", type=str, default='', help='comment in tensorboard title')
 parser.add_argument("--batch-size", type=int, default=44, help='batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
-parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='w2l',
+parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='crnn',
                     help='choices of neural network')
-parser.add_argument("--lr", type=float, default=5e-3, help='learning rate for optimization')
+parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
+parser.add_argument('--warpctc', action='store_true', help='use SeanNaren/warp-ctc instead of torch.nn.CTCLoss')
 args = parser.parse_args()
 
 use_gpu = torch.cuda.is_available()
@@ -106,11 +108,15 @@ else:
 model = model.cuda()
 
 # loss function
-# pytorch master already implemented the CTC loss but not usable yet!
-# so we are using now warpctc_pytorch
-from warpctc_pytorch import CTCLoss
+if args.warpctc:
+    from warpctc_pytorch import CTCLoss
 
-criterion = CTCLoss()
+    criterion = CTCLoss(blank=0, size_average=False, length_average=False)
+else:
+    from torch.nn import CTCLoss
+
+    criterion = CTCLoss(blank=0, reduction='sum', zero_infinity=True)
+
 decoder = GreedyDecoder(labels=vocab)
 
 if args.optim == 'sgd':
@@ -168,6 +174,11 @@ def train(epoch, phase='train'):
         inputs_length, targets_length = batch['input_length'], batch['target_length']
         # inputs = inputs.permute(0, 2, 1)
 
+        # warpctc wants Int instead of Long
+        targets = targets.int() if args.warpctc else targets.long()
+        inputs_length = inputs_length.int() if args.warpctc else inputs_length.long()
+        targets_length = targets_length.int() if args.warpctc else targets_length.long()
+
         B, n_feature, T = inputs.size()  # number of feature bins and time
         _, N = targets.size()  # batch size and text count
 
@@ -175,28 +186,24 @@ def train(epoch, phase='train'):
         # index = np.random.permutation(B)
         # inputs = inputs + random.uniform(0.05, 0.2) * inputs[index]
 
-        # warpctc_pytorch wants Int instead of Long!
-        targets = targets.int()
-        inputs_length = inputs_length.int()
-        targets_length = targets_length.int()
-
-        inputs = inputs.cuda()
-
         # BxCxT
-        outputs = model(inputs)
+        outputs = model(inputs.cuda())
         if args.model in ['jasper', 'w2l']:
             # make TxBxC
             outputs = outputs.permute(2, 0, 1)
         else:
             # TODO: avoids NaN on CRNN
-            inputs_length = torch.IntTensor([outputs.size(0)] * B)
+            inputs_length[:] = outputs.size(0)
 
-        # warpctc_pytorch wants one dimensional vector without blank elements
-        targets_1d = targets.view(-1)
-        targets_1d = targets_1d[targets_1d.nonzero().squeeze()]
-
-        # warpctc_pytorch wants the last 3 parameters on the CPU! -> only inputs is converted to CUDA
-        loss = criterion(outputs, targets_1d, inputs_length, targets_length)
+        if args.warpctc:
+            # warpctc wants one dimensional vector without blank elements
+            targets_1d = targets.view(-1)
+            targets_1d = targets_1d[targets_1d.nonzero().squeeze()]
+            # warpctc wants targets, inputs_length, targets_length on CPU -> don't need to convert to CUDA
+            loss = criterion(outputs, targets_1d, inputs_length, targets_length)
+        else:
+            # nn.CTCLoss wants log softmax
+            loss = criterion(outputs.log_softmax(dim=2), targets.cuda(), inputs_length.cuda(), targets_length.cuda())
         loss = loss / B
 
         if phase == 'train':
@@ -227,7 +234,7 @@ def train(epoch, phase='train'):
         if phase == 'train' and global_step % 50 == 1 or phase == 'valid':
             with torch.no_grad():
                 target_strings = decoder.convert_to_strings(targets)
-                decoded_output, _ = decoder.decode(outputs.softmax(2).permute(1, 0, 2))
+                decoded_output, _ = decoder.decode(outputs.softmax(dim=2).permute(1, 0, 2))
                 writer.add_text('%s/prediction' % phase,
                                 'truth: %s\npredicted: %s' % (target_strings[0][0], decoded_output[0][0]), global_step)
 
