@@ -4,11 +4,11 @@
 __author__ = 'Erdene-Ochir Tuguldur'
 
 import os
-import sys
 import time
 import argparse
 from tqdm import *
 
+from apex.parallel import DistributedDataParallel
 from apex import amp
 import albumentations as A
 
@@ -28,8 +28,9 @@ parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.A
 parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech'], default='bolorspeech',
                     help='dataset name')
 parser.add_argument("--comment", type=str, default='', help='comment in tensorboard title')
-parser.add_argument("--batch-size", type=int, default=44, help='batch size')
-parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
+parser.add_argument("--train-batch-size", type=int, default=44, help='train batch size')
+parser.add_argument("--valid-batch-size", type=int, default=22, help='valid batch size')
+parser.add_argument("--dataload-workers-nums", type=int, default=4, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
 parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='crnn',
@@ -37,13 +38,15 @@ parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='crnn'
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
 parser.add_argument('--warpctc', action='store_true', help='use SeanNaren/warp-ctc instead of torch.nn.CTCLoss')
+parser.add_argument("--local_rank", default=0, type=int)
 args = parser.parse_args()
 
-use_gpu = torch.cuda.is_available()
-print('use_gpu', use_gpu)
-if not use_gpu:
-    print("GPU not available!")
-    sys.exit(1)
+args.distributed = False
+if 'WORLD_SIZE' in os.environ:
+    args.distributed = int(os.environ['WORLD_SIZE']) > 1
+if args.distributed:
+    torch.cuda.set_device(args.local_rank)
+    torch.distributed.init_process_group(backend='nccl', init_method='env://')
 torch.backends.cudnn.benchmark = True
 
 train_transform = Compose([LoadMagSpectrogram(),
@@ -90,15 +93,20 @@ else:
     train_dataset = SpeechDataset(transform=train_transform)
     valid_dataset = SpeechDataset(transform=valid_transform)
     indices = list(range(len(train_dataset)))
-    train_dataset = Subset(train_dataset, indices[:-args.batch_size])
-    valid_dataset = Subset(valid_dataset, indices[-args.batch_size:])
+    train_dataset = Subset(train_dataset, indices[:-args.valid_batch_size])
+    valid_dataset = Subset(valid_dataset, indices[-args.valid_batch_size:])
 
-train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
-                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums)
-valid_data_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=True,
-                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums)
+train_data_sampler, valid_data_sampler = None, None
+if args.distributed:
+    train_data_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    valid_data_sampler = torch.utils.data.distributed.DistributedSampler(valid_dataset)
+train_data_loader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=(train_data_sampler is None),
+                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
+                               sampler=train_data_sampler)
+valid_data_loader = DataLoader(valid_dataset, batch_size=args.valid_batch_size, shuffle=(valid_data_sampler is None),
+                               collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
+                               sampler=valid_data_sampler)
 
-# NN model
 if args.model == 'jasper':
     model = TinyJasper(vocab)
 elif args.model == 'w2l':
@@ -107,7 +115,6 @@ else:
     model = Speech2TextCRNN(vocab)
 model = model.cuda()
 
-# loss function
 if args.warpctc:
     from warpctc_pytorch import CTCLoss
 
@@ -126,6 +133,8 @@ else:
 
 if args.mixed_precision:
     model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
+if args.distributed:
+    model = DistributedDataParallel(model)
 
 start_timestamp = int(time.time() * 1000)
 start_epoch = 0
@@ -141,7 +150,7 @@ writer = SummaryWriter(log_dir=logdir)
 last_checkpoint_file_name = get_last_checkpoint_file_name(logdir)
 if last_checkpoint_file_name:
     print("loading the last checkpoint: %s" % last_checkpoint_file_name)
-    start_epoch, global_step = load_checkpoint(last_checkpoint_file_name, model, optimizer, use_gpu)
+    start_epoch, global_step = load_checkpoint(last_checkpoint_file_name, model, optimizer, use_gpu=True)
 
 
 def get_lr():
@@ -158,7 +167,11 @@ def train(epoch, phase='train'):
     global global_step
 
     lr_decay(global_step)
-    print("epoch %3d with lr=%.02e" % (epoch, get_lr()))
+    if args.local_rank == 0:
+        print("epoch %3d with lr=%.02e" % (epoch, get_lr()))
+
+    if args.distributed:
+        train_data_sampler.set_epoch(epoch)
 
     model.train() if phase == 'train' else model.eval()
     torch.set_grad_enabled(True) if phase == 'train' else torch.set_grad_enabled(False)
@@ -168,8 +181,12 @@ def train(epoch, phase='train'):
     running_loss = 0.0
     total_cer, total_wer = 0, 0
 
-    pbar = tqdm(data_loader, unit="audios", unit_scale=data_loader.batch_size)
-    for batch in pbar:
+    pbar = None
+    if args.local_rank == 0:
+        batch_size = args.train_batch_size if phase == 'train' else args.valid_batch_size
+        pbar = tqdm(data_loader, unit="audios", unit_scale=batch_size)
+
+    for batch in data_loader if pbar is None else pbar:
         inputs, targets = batch['input'], batch['target']
         inputs_length, targets_length = batch['input_length'], batch['target_length']
         # inputs = inputs.permute(0, 2, 1)
@@ -213,7 +230,6 @@ def train(epoch, phase='train'):
             if args.mixed_precision:
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
-                # optimizer.clip_master_grads(100)
             else:
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
@@ -226,41 +242,45 @@ def train(epoch, phase='train'):
         loss = loss.item()
         running_loss += loss
 
-        if global_step % 10 == 0:
-            writer.add_scalar('%s/loss' % phase, loss, global_step)
-            if phase == 'train':
-                writer.add_scalar('%s/learning_rate' % phase, get_lr(), global_step)
+        if args.local_rank == 0:
+            if global_step % 10 == 0:
+                writer.add_scalar('%s/loss' % phase, loss, global_step)
+                if phase == 'train':
+                    writer.add_scalar('%s/learning_rate' % phase, get_lr(), global_step)
 
-        if phase == 'train' and global_step % 50 == 1 or phase == 'valid':
-            with torch.no_grad():
-                target_strings = decoder.convert_to_strings(targets)
-                decoded_output, _ = decoder.decode(outputs.softmax(dim=2).permute(1, 0, 2))
-                writer.add_text('%s/prediction' % phase,
-                                'truth: %s\npredicted: %s' % (target_strings[0][0], decoded_output[0][0]), global_step)
+            if phase == 'train' and global_step % 50 == 1 or phase == 'valid':
+                with torch.no_grad():
+                    target_strings = decoder.convert_to_strings(targets)
+                    decoded_output, _ = decoder.decode(outputs.softmax(dim=2).permute(1, 0, 2))
+                    writer.add_text('%s/prediction' % phase,
+                                    'truth: %s\npredicted: %s' % (target_strings[0][0], decoded_output[0][0]),
+                                    global_step)
 
-                if phase == 'valid':
-                    cer, wer = 0, 0
-                    for x in range(len(target_strings)):
-                        transcript, reference = decoded_output[x][0], target_strings[x][0]
-                        cer += decoder.cer(transcript, reference) / float(len(reference))
-                        wer += decoder.wer(transcript, reference) / float(len(reference.split()))
-                    total_cer += cer
-                    total_wer += wer
+                    if phase == 'valid':
+                        cer, wer = 0, 0
+                        for x in range(len(target_strings)):
+                            transcript, reference = decoded_output[x][0], target_strings[x][0]
+                            cer += decoder.cer(transcript, reference) / float(len(reference))
+                            wer += decoder.wer(transcript, reference) / float(len(reference.split()))
+                        total_cer += cer
+                        total_wer += wer
 
-        # update the progress bar
-        pbar.set_postfix({
-            'loss': "%.05f" % (running_loss / it)
-        })
+            # update the progress bar
+            pbar.set_postfix({
+                'loss': "%.05f" % (running_loss / it)
+            })
 
     epoch_loss = running_loss / it
-    writer.add_scalar('%s/epoch_loss' % phase, epoch_loss, epoch)
 
-    if phase == 'valid':
-        valid_dataset_length = len(valid_dataset)
-        writer.add_scalar('%s/epoch_cer' % phase, (total_cer / valid_dataset_length) * 100, epoch)
-        writer.add_scalar('%s/epoch_wer' % phase, (total_wer / valid_dataset_length) * 100, epoch)
+    if args.local_rank == 0:
+        writer.add_scalar('%s/epoch_loss' % phase, epoch_loss, epoch)
 
-        save_checkpoint(logdir, epoch, global_step, model, optimizer)
+        if phase == 'valid':
+            valid_dataset_length = len(valid_dataset)
+            writer.add_scalar('%s/epoch_cer' % phase, (total_cer / valid_dataset_length) * 100, epoch)
+            writer.add_scalar('%s/epoch_wer' % phase, (total_wer / valid_dataset_length) * 100, epoch)
+
+            save_checkpoint(logdir, epoch, global_step, model, optimizer)
 
     return epoch_loss
 
@@ -269,15 +289,13 @@ since = time.time()
 epoch = start_epoch
 while True:
     train_epoch_loss = train(epoch, phase='train')
-    time_elapsed = time.time() - since
-    time_str = 'total time elapsed: {:.0f}h {:.0f}m {:.0f}s '.format(time_elapsed // 3600, time_elapsed % 3600 // 60,
-                                                                     time_elapsed % 60)
-    print("train epoch loss %f, step=%d, %s" % (train_epoch_loss, global_step, time_str))
-
-    valid_epoch_loss = train(epoch, phase='valid')
-    print("valid epoch loss %f" % valid_epoch_loss)
+    if args.local_rank == 0:
+        time_elapsed = time.time() - since
+        time_str = 'total time elapsed: {:.0f}h {:.0f}m {:.0f}s '.format(time_elapsed // 3600,
+                                                                         time_elapsed % 3600 // 60,
+                                                                         time_elapsed % 60)
+        print("train epoch loss %f, step=%d, %s" % (train_epoch_loss, global_step, time_str))
+        valid_epoch_loss = train(epoch, phase='valid')
+        print("valid epoch loss %f" % valid_epoch_loss)
 
     epoch += 1
-    # if global_step >= hp.model_max_iteration:
-    #    print("max step %d (current step %d) reached, exiting..." % (hp.model_max_iteration, global_step))
-    #    sys.exit(0)
