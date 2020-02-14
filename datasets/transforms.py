@@ -207,10 +207,11 @@ class SpeedChange(object):
 class ComputeMagSpectrogram(object):
     """Computes the magnitude spectrogram of an audio."""
 
-    def __init__(self, n_fft=512, win_length=20e-3, hop_length=10e-3):
+    def __init__(self, n_fft=512, win_length=20e-3, hop_length=10e-3, center=False):
         self.n_fft = n_fft
         self.win_length = win_length
         self.hop_length = hop_length
+        self.center = center
 
     @staticmethod
     def preemphasis(samples, coeff=0.97):
@@ -224,7 +225,7 @@ class ComputeMagSpectrogram(object):
         stft = librosa.stft(samples, n_fft=self.n_fft,
                             win_length=int(self.win_length*sample_rate),
                             hop_length=int(self.hop_length*sample_rate),
-                            center=False)
+                            center=self.center)
         # F, T
         features = np.abs(stft)
 
@@ -243,9 +244,12 @@ class ComputeMagSpectrogram(object):
 class ComputeMelSpectrogramFromMagSpectrogram(object):
     """Computes the mel spectrogram from a magnitude spectrogram."""
 
-    def __init__(self, num_features=32):
+    def __init__(self, num_features=32, normalize='all_features', eps=1e-20):
         self.num_features = num_features
         self.mel_basis = None
+        assert normalize in ['all_features', 'per_feature']
+        self.normalize = normalize
+        self.eps = eps
 
     def __call__(self, data):
         if self.mel_basis is None:
@@ -258,12 +262,17 @@ class ComputeMelSpectrogramFromMagSpectrogram(object):
                                                  htk=False)
         mag = data['input']
         # features = librosa.power_to_db(np.dot(self.mel_basis, mag*mag), ref=np.max)
-        features = np.log(np.dot(self.mel_basis, mag*mag) + 1e-20)
+        features = np.log(np.dot(self.mel_basis, mag*mag) + self.eps)
 
         # normalize
-        m = np.mean(features)
-        s = np.std(features)
-        features = (features - m) / s
+        if self.normalize == 'all_features':
+            m = np.mean(features)
+            s = np.std(features) #+ 1e-5
+            features = (features - m) / s
+        elif self.normalize == 'per_feature':
+            m = np.mean(features, axis=1, keepdims=True)
+            s = np.std(features, axis=1, keepdims=True) + 1e-5
+            features = (features - m) / s
 
         data['input'] = features.astype(np.float32)
         return data
