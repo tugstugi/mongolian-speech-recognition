@@ -38,6 +38,8 @@ parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='crnn'
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
 parser.add_argument('--warpctc', action='store_true', help='use SeanNaren/warp-ctc instead of torch.nn.CTCLoss')
+parser.add_argument('--cudnn-benchmark', action='store_true', help='enable CUDNN benchmark')
+parser.add_argument("--max-epochs", default=300, type=int)
 parser.add_argument("--local_rank", default=0, type=int)
 args = parser.parse_args()
 
@@ -47,7 +49,7 @@ if 'WORLD_SIZE' in os.environ:
 if args.distributed:
     torch.cuda.set_device(args.local_rank)
     torch.distributed.init_process_group(backend='nccl', init_method='env://')
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = args.cudnn_benchmark
 
 train_transform = Compose([LoadMagSpectrogram(),
                            AddNoiseToMagSpectrogram(noise=ColoredNoiseDataset(), probability=0.5),
@@ -103,9 +105,9 @@ if args.distributed:
 train_data_loader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=(train_data_sampler is None),
                                collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
                                sampler=train_data_sampler)
-valid_data_loader = DataLoader(valid_dataset, batch_size=args.valid_batch_size, shuffle=(valid_data_sampler is None),
+valid_data_loader = DataLoader(valid_dataset, batch_size=args.valid_batch_size, shuffle=False,
                                collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
-                               sampler=valid_data_sampler)
+                               sampler=None)
 
 if args.model == 'jasper':
     model = TinyJasper(vocab)
@@ -279,6 +281,7 @@ def train(epoch, phase='train'):
             valid_dataset_length = len(valid_dataset)
             writer.add_scalar('%s/epoch_cer' % phase, (total_cer / valid_dataset_length) * 100, epoch)
             writer.add_scalar('%s/epoch_wer' % phase, (total_wer / valid_dataset_length) * 100, epoch)
+            print('%s/epoch_wer' % phase, (total_wer / valid_dataset_length) * 100)
 
             save_checkpoint(logdir, epoch, global_step, model, optimizer)
 
@@ -299,3 +302,6 @@ while True:
         print("valid epoch loss %f" % valid_epoch_loss)
 
     epoch += 1
+
+    if epoch > args.max_epochs:
+        break
