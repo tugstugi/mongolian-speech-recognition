@@ -134,6 +134,7 @@ class JasperEncoderDecoder(nn.Module):
     def load_nvidia_nemo_weights(self, encoder_weight_path, decoder_weight_path, map_location='cpu'):
         import torch
         encoder_weight = torch.load(encoder_weight_path, map_location=map_location)
-        decoder_weight = torch.load(decoder_weight_path, map_location=map_location)
-        encoder_weight.update(decoder_weight)
-        self.load_state_dict(encoder_weight)
+        if decoder_weight_path:
+            decoder_weight = torch.load(decoder_weight_path, map_location=map_location)
+            encoder_weight.update(decoder_weight)
+        self.load_state_dict(encoder_weight, strict=False)
