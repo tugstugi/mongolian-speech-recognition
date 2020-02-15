@@ -12,10 +12,11 @@ import librosa
 import pandas as pd
 
 from zipfile import ZipFile
+sys.path.append('..')
 from utils import download_file
 
 dataset_name = 'MBSpeech-1.0'
-datasets_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'datasets')
+datasets_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '.')
 dataset_path = os.path.join(datasets_path, dataset_name)
 
 if os.path.isdir(dataset_path) and False:
