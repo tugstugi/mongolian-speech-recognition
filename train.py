@@ -147,6 +147,9 @@ if args.comment:
     logname = "%s_%s" % (logname, args.comment.replace(' ', '_'))
 logdir = os.path.join('logdir', logname)
 writer = SummaryWriter(log_dir=logdir)
+if args.local_rank == 0:
+    print(vars(args))
+    writer.add_hparams(vars(args), {})
 
 # load the last checkpoint if exists
 last_checkpoint_file_name = get_last_checkpoint_file_name(logdir)
