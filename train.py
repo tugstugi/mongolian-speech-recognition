@@ -35,7 +35,7 @@ parser.add_argument("--dataload-workers-nums", type=int, default=4, help='number
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adamw', 'novograd'], default='sgd',
                     help='choices of optimization algorithms')
-parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet15x5'], default='crnn',
+parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet10x5', 'quartznet15x5'], default='crnn',
                     help='choices of neural network')
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
@@ -113,6 +113,8 @@ valid_data_loader = DataLoader(valid_dataset, batch_size=args.valid_batch_size, 
 
 if args.model == 'quartznet5x5':
     model = QuartzNet5x5(vocab=vocab, num_features=32)
+elif args.model == 'quartznet10x5':
+    model = QuartzNet10x5(vocab=vocab, num_features=32)
 elif args.model == 'quartznet15x5':
     model = QuartzNet15x5(vocab=vocab, num_features=32)
 else:
