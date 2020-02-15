@@ -4,6 +4,7 @@
 __author__ = 'Erdene-Ochir Tuguldur'
 
 import os
+import json
 import time
 import argparse
 from tqdm import *
@@ -33,7 +34,7 @@ parser.add_argument("--valid-batch-size", type=int, default=22, help='valid batc
 parser.add_argument("--dataload-workers-nums", type=int, default=4, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
-parser.add_argument("--model", choices=['crnn', 'quartznet15x5'], default='crnn',
+parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet15x5'], default='crnn',
                     help='choices of neural network')
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
@@ -109,7 +110,9 @@ valid_data_loader = DataLoader(valid_dataset, batch_size=args.valid_batch_size, 
                                collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
                                sampler=None)
 
-if args.model == 'quartznet15x5':
+if args.model == 'quartznet5x5':
+    model = QuartzNet5x5(vocab=vocab, num_features=32)
+elif args.model == 'quartznet15x5':
     model = QuartzNet15x5(vocab=vocab, num_features=32)
 else:
     model = Speech2TextCRNN(vocab)
@@ -147,7 +150,7 @@ logdir = os.path.join('logdir', logname)
 writer = SummaryWriter(log_dir=logdir)
 if args.local_rank == 0:
     print(vars(args))
-    writer.add_hparams(vars(args), {})
+    writer.add_text("hparams", json.dumps(vars(args), indent=4))
 
 # load the last checkpoint if exists
 last_checkpoint_file_name = get_last_checkpoint_file_name(logdir)
@@ -207,14 +210,15 @@ def train(epoch, phase='train'):
         # inputs = inputs + random.uniform(0.05, 0.2) * inputs[index]
 
         # BxCxT
-        outputs = model(inputs.cuda())
+        outputs = model(inputs.cuda(), inputs_length.cuda()) if args.model.startswith('quartznet') else model(inputs.cuda())
         if args.model == 'crnn':
             pass
-            # TODO: avoids NaN on CRNN
-            inputs_length[:] = outputs.size(0)
         else:
             # BxCxT -> TxBxC
             outputs = outputs.permute(2, 0, 1)
+
+        # TODO: avoids NaN on CRNN
+        inputs_length[:] = outputs.size(0)
 
         if args.warpctc:
             # warpctc wants one dimensional vector without blank elements

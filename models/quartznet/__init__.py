@@ -1,2 +1,2 @@
-from .quartznet15x5 import QuartzNet15x5
+from .quartznet import QuartzNet5x5, QuartzNet15x5
 
