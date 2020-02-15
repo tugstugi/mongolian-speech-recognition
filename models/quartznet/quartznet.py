@@ -70,6 +70,7 @@ _quartznet5x5_config = [
 class QuartzNet15x5(JasperEncoderDecoder):
 
     def __init__(self, vocab, num_features):
+        print("QuartzNet15x5", len(_quartznet15x5_config))
         super(QuartzNet15x5, self).__init__(feat_in=num_features, num_classes=len(vocab), activation='relu',
                                             jasper=_quartznet15x5_config)
 
@@ -77,6 +78,7 @@ class QuartzNet15x5(JasperEncoderDecoder):
 class QuartzNet10x5(JasperEncoderDecoder):
 
     def __init__(self, vocab, num_features):
+        print("QuartzNet10x5", len(_quartznet10x5_config))
         super(QuartzNet10x5, self).__init__(feat_in=num_features, num_classes=len(vocab), activation='relu',
                                             jasper=_quartznet10x5_config)
 
@@ -84,5 +86,6 @@ class QuartzNet10x5(JasperEncoderDecoder):
 class QuartzNet5x5(JasperEncoderDecoder):
 
     def __init__(self, vocab, num_features):
+        print("_quartznet5x5_config", len(_quartznet5x5_config))
         super(QuartzNet5x5, self).__init__(feat_in=num_features, num_classes=len(vocab), activation='relu',
                                            jasper=_quartznet5x5_config)

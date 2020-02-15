@@ -11,7 +11,7 @@ from tqdm import *
 
 from apex.parallel import DistributedDataParallel
 from apex import amp
-import albumentations as A
+import albumentations as album
 
 import torch
 from torch.utils.data import DataLoader, Subset, ConcatDataset
@@ -57,9 +57,10 @@ train_transform = Compose([LoadMagSpectrogram(),
                            AddNoiseToMagSpectrogram(noise=ColoredNoiseDataset(), probability=0.5),
                            ShiftSpectrogramAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7),
                            ComputeMelSpectrogramFromMagSpectrogram(),
-                           ApplyAlbumentations(A.Compose([
-                               # A.OneOf([A.Blur(blur_limit=3), A.MedianBlur(blur_limit=3)]),  # sometimes hurts, sometimes OK
-                               A.Cutout(num_holes=10)  # dataset dependent, longer audios more cutout
+                           ApplyAlbumentations(album.Compose([
+                               # album.OneOf([album.Blur(blur_limit=3),
+                               #              album.MedianBlur(blur_limit=3)]),  # sometimes hurts, sometimes OK
+                               album.Cutout(num_holes=10)  # dataset dependent, longer audios more cutout
                            ], p=1)),
                            TimeScaleSpectrogram(max_scale=0.1, probability=0.5),  # only tiny effect
                            MaskSpectrogram(frequency_mask_max_percentage=0.3,
@@ -116,7 +117,9 @@ if args.model == 'quartznet5x5':
 elif args.model == 'quartznet10x5':
     model = QuartzNet10x5(vocab=vocab, num_features=32)
 elif args.model == 'quartznet15x5':
-    model = QuartzNet15x5(vocab=vocab, num_features=32)
+    model = QuartzNet15x5(vocab=vocab, num_features=64)
+    model.load_nvidia_nemo_weights('quartznet15x5/JasperEncoder-STEP-247400.pt',
+                                   'quartznet15x5/JasperDecoderForCTC-STEP-247400.pt')
 else:
     model = Speech2TextCRNN(vocab)
 model = model.cuda()
