@@ -22,7 +22,7 @@ from tensorboardX import SummaryWriter
 from datasets import *
 from models import *
 from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoint
-
+from optimizers import AdamW, Novograd
 from decoder import GreedyDecoder
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -33,7 +33,8 @@ parser.add_argument("--train-batch-size", type=int, default=44, help='train batc
 parser.add_argument("--valid-batch-size", type=int, default=22, help='valid batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=4, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
-parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
+parser.add_argument("--optim", choices=['sgd', 'adamw', 'novograd'], default='sgd',
+                    help='choices of optimization algorithms')
 parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet15x5'], default='crnn',
                     help='choices of neural network')
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
@@ -131,8 +132,11 @@ decoder = GreedyDecoder(labels=vocab)
 
 if args.optim == 'sgd':
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay)
+if args.optim == 'novograd':
+    optimizer = Novograd(model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
+                         betas=(0.95, 0.5))
 else:
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 if args.mixed_precision:
     model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
