@@ -33,7 +33,7 @@ parser.add_argument("--valid-batch-size", type=int, default=22, help='valid batc
 parser.add_argument("--dataload-workers-nums", type=int, default=4, help='number of workers for dataloader')
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adam'], default='sgd', help='choices of optimization algorithms')
-parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='crnn',
+parser.add_argument("--model", choices=['crnn', 'quartznet15x5'], default='crnn',
                     help='choices of neural network')
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
@@ -109,10 +109,8 @@ valid_data_loader = DataLoader(valid_dataset, batch_size=args.valid_batch_size, 
                                collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
                                sampler=None)
 
-if args.model == 'jasper':
-    model = TinyJasper(vocab)
-elif args.model == 'w2l':
-    model = TinyWav2Letter(vocab)
+if args.model == 'quartznet15x5':
+    model = QuartzNet15x5(vocab=vocab, num_features=32)
 else:
     model = Speech2TextCRNN(vocab)
 model = model.cuda()
@@ -210,12 +208,13 @@ def train(epoch, phase='train'):
 
         # BxCxT
         outputs = model(inputs.cuda())
-        if args.model in ['jasper', 'w2l']:
-            # make TxBxC
-            outputs = outputs.permute(2, 0, 1)
-        else:
+        if args.model == 'crnn':
+            pass
             # TODO: avoids NaN on CRNN
             inputs_length[:] = outputs.size(0)
+        else:
+            # BxCxT -> TxBxC
+            outputs = outputs.permute(2, 0, 1)
 
         if args.warpctc:
             # warpctc wants one dimensional vector without blank elements
@@ -224,7 +223,7 @@ def train(epoch, phase='train'):
             # warpctc wants targets, inputs_length, targets_length on CPU -> don't need to convert to CUDA
             loss = criterion(outputs, targets_1d, inputs_length, targets_length)
         else:
-            # nn.CTCLoss wants log softmax
+            # nn.CTCLoss wants log softmax with TxBxC
             loss = criterion(outputs.log_softmax(dim=2), targets.cuda(), inputs_length.cuda(), targets_length.cuda())
         loss = loss / B
 

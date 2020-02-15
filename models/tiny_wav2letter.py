@@ -61,4 +61,5 @@ class TinyWav2Letter(nn.Module):
         y = self.B5(y)
 
         y = self.last_layer(y)
+        # BxCxT
         return y

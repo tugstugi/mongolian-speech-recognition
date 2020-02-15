@@ -96,6 +96,7 @@ class Speech2TextCRNN(nn.Module):
         # rnn features
         output = self.rnn(conv)
 
+        # TxBxC
         return output
 
 

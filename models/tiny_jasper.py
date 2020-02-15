@@ -64,4 +64,5 @@ class TinyJasper(nn.Module):
         y = self.B5(self.B4(y)) + self.r4_5(y)
 
         y = self.last_layer(y)
+        # BxCxT
         return y
