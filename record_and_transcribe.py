@@ -7,7 +7,7 @@ import argparse
 
 import sounddevice as sd
 
-from datasets import Compose, ComputeMelSpectrogram
+from datasets import Compose, ComputeMagSpectrogram, ComputeMelSpectrogramFromMagSpectrogram
 from transcribe import transcribe
 
 
@@ -33,6 +33,6 @@ if __name__ == '__main__':
         'sample_rate': sample_rate,
         'text': ''
     }
-    data = Compose([ComputeMelSpectrogram()])(data)
+    data = Compose([ComputeMagSpectrogram(), ComputeMelSpectrogramFromMagSpectrogram()])(data)
 
     transcribe(data, args)
