@@ -1,9 +1,6 @@
-torch>=1.2
 librosa>=0.6.1
 tqdm
 tensorboardX
-numpy
-scipy
 python-levenshtein
 opencv-python
 albumentations

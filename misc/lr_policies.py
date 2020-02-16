@@ -1,3 +1,8 @@
+"""Learning rate scheduling policies."""
+
+__author__ = 'Erdene-Ochir Tuguldur'
+__all__ = ['noam_v1', 'cosine_annealing']
+
 import math
 
 

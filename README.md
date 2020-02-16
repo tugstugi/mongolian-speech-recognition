@@ -1,20 +1,21 @@
 An online demo trained with a Mongolian proprietary dataset (WER 14%): [https://chimege.mn/](https://chimege.mn/).
 
 In this repo, following papers are implemented:
-* [Letter-Based Speech Recognition with Gated ConvNets](https://arxiv.org/abs/1712.09444)
-* [Jasper: An End-to-End Convolutional Neural Acoustic Model](https://arxiv.org/abs/1904.03288)
+* [QuartzNet: Deep Automatic Speech Recognition with 1D Time-Channel Separable Convolutions](https://arxiv.org/abs/1910.10261)
 * [An End-to-End Trainable Neural Network for Image-based Sequence Recognition and Its Application to Scene Text Recognition](https://arxiv.org/abs/1507.05717)
   * speech recognition as optical character recognition
   * for online demo with WER 14%, see [https://chimege.mn/](https://chimege.mn/).
 
-This repo is partially based on [SeanNaren/deepspeech.pytorch](https://github.com/SeanNaren/deepspeech.pytorch).
+This repo is partially based on:
+* decoder from [SeanNaren/deepspeech.pytorch](https://github.com/SeanNaren/deepspeech.pytorch)
+* Jasper/QuartzNet blocks from [NVIDIA/NeMo](https://github.com/NVIDIA/NeMo)
 
 ## Training
-1. Install the `warp-ctc`python binding: https://github.com/SeanNaren/warp-ctc
+1. Install PyTorch>=1.2 with conda
 2. Install remaining dependencies: `pip install -r requirements.txt`
 3. Download the Mongolian Bible dataset: `cd datasets && python dl_mbspeech.py`
-4. Pre compute the mel spectrograms: `python preprop_mbspeech.py`
-5. Train: `python train.py`
+4. Pre compute the mel spectrograms: `python preprop_dataset.py --dataset mbspeech`
+5. Train: `python train.py --dataset mbspeech`
    * logs for the TensorBoard are saved in the folder `logdir`
 
 ## Results
@@ -34,7 +35,7 @@ should be already recognizable after few epochs:
 The dataset contains only first 3 books of the Mongolian Bible. You can validate your trained model
 from other Bible books (download them from https://www.bible.com/versions/1590-2013-ariun-bibli-2013 as mp3 file).
 
-To validate an audio file using a pretrained model, use following commands:
+To transcribe an audio file using a pretrained model, use following commands:
 ```
 # download a pretrained model
 wget https://www.dropbox.com/s/9wan945h110wmyc/epoch-0182-fb4c392.pth

@@ -1,3 +1,10 @@
+"""QuartzNet: Deep Automatic Speech Recognition with 1D Time-Channel Separable Convolutions
+https://arxiv.org/abs/1910.10261
+"""
+
+__author__ = 'Erdene-Ochir Tuguldur'
+__all__ = ['QuartzNet5x5', 'QuartzNet10x5', 'QuartzNet15x5']
+
 from .jasper_encoder_decoder import JasperEncoderDecoder
 
 _quartznet15x5_config = [
