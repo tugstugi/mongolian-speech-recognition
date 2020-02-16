@@ -187,7 +187,8 @@ def get_lr():
 
 def lr_decay(step, epoch):
     new_lr = lr_policy(args.lr, step, epoch, args.min_lr, args.lr_warmup_steps, total_steps)
-    optimizer.param_groups[0]['lr'] = new_lr
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = new_lr
 
 
 def train(epoch, phase='train'):
@@ -261,7 +262,8 @@ def train(epoch, phase='train'):
                     scaled_loss.backward()
             else:
                 loss.backward()
-                # torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
+            # clip gradient
+            torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 100)
 
             optimizer.step()
 
