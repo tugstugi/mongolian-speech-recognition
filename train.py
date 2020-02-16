@@ -23,6 +23,7 @@ from datasets import *
 from models import *
 from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoint
 from misc.optimizers import AdamW, Novograd
+from misc.lr_policies import noam_v1, cosine_annealing
 from decoder import GreedyDecoder
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -38,6 +39,10 @@ parser.add_argument("--optim", choices=['sgd', 'adamw', 'novograd'], default='sg
 parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet10x5', 'quartznet15x5'], default='crnn',
                     help='choices of neural network')
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
+parser.add_argument("--min-lr", type=float, default=1e-6, help='minimal learning rate for optimization')
+parser.add_argument("--lr-warmup-steps", type=int, default=2000, help='learning rate warmup steps')
+parser.add_argument("--lr-policy", choices=['noam', 'cosine'], default='noam',
+                    help='learning rate scheduling policy')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
 parser.add_argument('--warpctc', action='store_true', help='use SeanNaren/warp-ctc instead of torch.nn.CTCLoss')
 parser.add_argument('--cudnn-benchmark', action='store_true', help='enable CUDNN benchmark')
@@ -138,11 +143,18 @@ decoder = GreedyDecoder(labels=vocab)
 
 if args.optim == 'sgd':
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay)
-if args.optim == 'novograd':
+elif args.optim == 'novograd':
     optimizer = Novograd(model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
                          betas=(0.95, 0.5))
 else:
     optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
+total_steps = int(len(train_dataset) * args.max_epochs / (args.world_size * args.train_batch_size))
+print(total_steps)
+if args.lr_policy == 'cosine':
+    lr_policy = cosine_annealing
+else:
+    lr_policy = noam_v1
 
 if args.mixed_precision:
     model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
@@ -153,7 +165,7 @@ start_timestamp = int(time.time() * 1000)
 start_epoch = 0
 global_step = 0
 
-logname = "%s_%s_wd%.0e" % (args.dataset, args.model, args.weight_decay)
+logname = "%s_%s_%s_wd%.0e" % (args.dataset, args.model, args.optim, args.weight_decay)
 if args.comment:
     logname = "%s_%s" % (logname, args.comment.replace(' ', '_'))
 logdir = os.path.join('logdir', logname)
@@ -173,16 +185,16 @@ def get_lr():
     return optimizer.param_groups[0]['lr']
 
 
-def lr_decay(step, warmup_steps=2000):
-    # https://github.com/tensorflow/tensor2tensor/issues/280
-    new_lr = args.lr * warmup_steps ** 0.5 * min((step + 1) * warmup_steps ** -1.5, (step + 1) ** -0.5)
+def lr_decay(step, epoch):
+    new_lr = lr_policy(args.lr, step, epoch, args.min_lr, args.lr_warmup_steps, total_steps)
+    print(new_lr)
     optimizer.param_groups[0]['lr'] = new_lr
 
 
 def train(epoch, phase='train'):
     global global_step
 
-    lr_decay(global_step)
+    lr_decay(global_step, epoch)
     if args.local_rank == 0:
         print("epoch %3d with lr=%.02e" % (epoch, get_lr()))
 
@@ -242,7 +254,7 @@ def train(epoch, phase='train'):
         loss = loss / B
 
         if phase == 'train':
-            lr_decay(global_step)
+            lr_decay(global_step, epoch)
             optimizer.zero_grad()
 
             if args.mixed_precision:
@@ -250,7 +262,7 @@ def train(epoch, phase='train'):
                     scaled_loss.backward()
             else:
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
+                # torch.nn.utils.clip_grad_norm_(model.parameters(), 100)
 
             optimizer.step()
 
