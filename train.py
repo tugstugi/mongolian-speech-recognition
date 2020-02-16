@@ -265,7 +265,8 @@ def train(epoch, phase='train'):
 
             optimizer.step()
 
-        global_step += 1
+            # global step size is increased only in the train phase
+            global_step += 1
         it += 1
 
         loss = loss.item()
@@ -273,17 +274,17 @@ def train(epoch, phase='train'):
 
         if args.local_rank == 0:
             if global_step % 10 == 0:
-                writer.add_scalar('%s/loss' % phase, loss, global_step)
                 if phase == 'train':
+                    writer.add_scalar('%s/loss' % phase, loss, global_step)
                     writer.add_scalar('%s/learning_rate' % phase, get_lr(), global_step)
 
-            if phase == 'train' and global_step % 50 == 1 or phase == 'valid':
+            if phase == 'train' and global_step % 1000 == 1 or phase == 'valid':
                 with torch.no_grad():
                     target_strings = decoder.convert_to_strings(targets)
                     decoded_output, _ = decoder.decode(outputs.softmax(dim=2).permute(1, 0, 2))
                     writer.add_text('%s/prediction' % phase,
                                     'truth: %s\npredicted: %s' % (target_strings[0][0], decoded_output[0][0]),
-                                    global_step)
+                                    global_step if phase == 'train' else global_step + it)
 
                     if phase == 'valid':
                         cer, wer = 0, 0
