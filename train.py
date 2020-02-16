@@ -187,7 +187,6 @@ def get_lr():
 
 def lr_decay(step, epoch):
     new_lr = lr_policy(args.lr, step, epoch, args.min_lr, args.lr_warmup_steps, total_steps)
-    print(new_lr)
     optimizer.param_groups[0]['lr'] = new_lr
 
 
