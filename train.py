@@ -22,7 +22,7 @@ from tensorboardX import SummaryWriter
 from datasets import *
 from models import *
 from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoint
-from optimizers import AdamW, Novograd
+from misc.optimizers import AdamW, Novograd
 from decoder import GreedyDecoder
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -46,8 +46,10 @@ parser.add_argument("--local_rank", default=0, type=int)
 args = parser.parse_args()
 
 args.distributed = False
+args.world_size = 1
 if 'WORLD_SIZE' in os.environ:
     args.distributed = int(os.environ['WORLD_SIZE']) > 1
+    args.world_size = int(os.environ['WORLD_SIZE'])
 if args.distributed:
     torch.cuda.set_device(args.local_rank)
     torch.distributed.init_process_group(backend='nccl', init_method='env://')
