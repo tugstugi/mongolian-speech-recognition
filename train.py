@@ -41,7 +41,7 @@ parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet10x5',
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
 parser.add_argument("--min-lr", type=float, default=1e-6, help='minimal learning rate for optimization')
 parser.add_argument("--lr-warmup-steps", type=int, default=2000, help='learning rate warmup steps')
-parser.add_argument("--lr-policy", choices=['noam', 'cosine'], default='noam',
+parser.add_argument("--lr-policy", choices=['noam', 'cosine', 'none'], default='noam',
                     help='learning rate scheduling policy')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
 parser.add_argument('--warpctc', action='store_true', help='use SeanNaren/warp-ctc instead of torch.nn.CTCLoss')
@@ -154,8 +154,10 @@ total_steps = int(len(train_dataset) * args.max_epochs / (args.world_size * args
 print(total_steps)
 if args.lr_policy == 'cosine':
     lr_policy = cosine_annealing
-else:
+elif args.lr_policy == 'noam':
     lr_policy = noam_v1
+else:
+    lr_policy = None
 
 if args.mixed_precision:
     model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
@@ -187,9 +189,10 @@ def get_lr():
 
 
 def lr_decay(step, epoch):
-    new_lr = lr_policy(args.lr, step, epoch, args.min_lr, args.lr_warmup_steps, total_steps)
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = new_lr
+    if lr_policy is not None:
+        new_lr = lr_policy(args.lr, step, epoch, args.min_lr, args.lr_warmup_steps, total_steps)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = new_lr
 
 
 def train(epoch, phase='train'):
