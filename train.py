@@ -237,7 +237,7 @@ def train(epoch, phase='train'):
             outputs = model(inputs.cuda())
             inputs_length = inputs_length // 2 + 2
         else:
-            outputs = model(inputs.cuda(), inputs_length.cuda())
+            outputs, inputs_length = model(inputs.cuda(), inputs_length.cuda())
             # BxCxT -> TxBxC
             outputs = outputs.permute(2, 0, 1)
 

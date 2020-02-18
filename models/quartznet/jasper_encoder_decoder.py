@@ -129,7 +129,7 @@ class JasperEncoderDecoder(nn.Module):
     def forward(self, audio_signal, length):
         s_input, length = self.encoder(([audio_signal], length))
         # BxCxT
-        return self.decoder_layers(s_input[-1])
+        return self.decoder_layers(s_input[-1]), length
 
     def load_nvidia_nemo_weights(self, encoder_weight_path, decoder_weight_path, map_location='cpu'):
         import torch
