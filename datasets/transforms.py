@@ -182,6 +182,7 @@ class TimeScaleSpectrogram(object):
             scale = random.uniform(-self.max_scale, self.max_scale)
             data['input'] = cv2.resize(data['input'],
                                        (int(round((1 + scale) * t)), num_features), interpolation=cv2.INTER_LINEAR)
+            data['input_length'] = data['input'].shape[-1]
         return data
 
 

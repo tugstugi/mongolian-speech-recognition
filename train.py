@@ -46,6 +46,7 @@ parser.add_argument("--lr-policy", choices=['noam', 'cosine'], default='noam',
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
 parser.add_argument('--warpctc', action='store_true', help='use SeanNaren/warp-ctc instead of torch.nn.CTCLoss')
 parser.add_argument('--cudnn-benchmark', action='store_true', help='enable CUDNN benchmark')
+parser.add_argument('--mix-batch', action='store_true', help='mix batch to simulate background sound')
 parser.add_argument("--max-epochs", default=300, type=int)
 parser.add_argument("--local_rank", default=0, type=int)
 args = parser.parse_args()
@@ -217,7 +218,6 @@ def train(epoch, phase='train'):
     for batch in data_loader if pbar is None else pbar:
         inputs, targets = batch['input'], batch['target']
         inputs_length, targets_length = batch['input_length'], batch['target_length']
-        # inputs = inputs.permute(0, 2, 1)
 
         # warpctc wants Int instead of Long
         targets = targets.int() if args.warpctc else targets.long()
@@ -227,20 +227,22 @@ def train(epoch, phase='train'):
         B, n_feature, T = inputs.size()  # number of feature bins and time
         _, N = targets.size()  # batch size and text count
 
-        # mix inputs
-        # index = np.random.permutation(B)
-        # inputs = inputs + random.uniform(0.05, 0.2) * inputs[index]
+        if args.mix_batch:
+            # poor man's mixup
+            index = np.random.permutation(B)
+            inputs = inputs + random.uniform(0.05, 0.2) * inputs[index]
 
-        # BxCxT
-        outputs = model(inputs.cuda(), inputs_length.cuda()) if args.model.startswith('quartznet') else model(inputs.cuda())
+        # inputs: BxCxT
         if args.model == 'crnn':
-            pass
+            outputs = model(inputs.cuda())
+            inputs_length = inputs_length // 2 + 2
         else:
+            outputs = model(inputs.cuda(), inputs_length.cuda())
             # BxCxT -> TxBxC
             outputs = outputs.permute(2, 0, 1)
 
-        # TODO: avoids NaN on CRNN
-        inputs_length[:] = outputs.size(0)
+        # train on full batch length -> better for detecting silence?
+        # inputs_length[:] = outputs.size(0)
 
         if args.warpctc:
             # warpctc wants one dimensional vector without blank elements
