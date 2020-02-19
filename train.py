@@ -37,6 +37,7 @@ parser.add_argument("--dataload-workers-nums", type=int, default=4, help='number
 parser.add_argument("--weight-decay", type=float, default=1e-5, help='weight decay')
 parser.add_argument("--optim", choices=['sgd', 'adamw', 'novograd'], default='sgd',
                     help='choices of optimization algorithms')
+parser.add_argument("--clip-grad-norm", type=int, default=100, help='clip gradient norm value')
 parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet10x5', 'quartznet15x5'], default='crnn',
                     help='choices of neural network')
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
@@ -282,8 +283,9 @@ def train(epoch, phase='train'):
                     scaled_loss.backward()
             else:
                 loss.backward()
-            # clip gradient
-            torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 100)
+            if args.clip_grad_norm > 0:
+                # clip gradient
+                torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.clip_grad_norm)
 
             optimizer.step()
 
