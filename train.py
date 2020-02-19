@@ -9,6 +9,7 @@ import time
 import argparse
 from tqdm import *
 
+import apex
 from apex.parallel import DistributedDataParallel
 from apex import amp
 import albumentations as album
@@ -44,6 +45,7 @@ parser.add_argument("--lr-warmup-steps", type=int, default=2000, help='learning 
 parser.add_argument("--lr-policy", choices=['noam', 'cosine', 'none'], default='noam',
                     help='learning rate scheduling policy')
 parser.add_argument('--mixed-precision', action='store_true', help='enable mixed precision training')
+parser.add_argument('--sync-bn', action='store_true', help='enable apex sync batch norm.')
 parser.add_argument('--warpctc', action='store_true', help='use SeanNaren/warp-ctc instead of torch.nn.CTCLoss')
 parser.add_argument('--cudnn-benchmark', action='store_true', help='enable CUDNN benchmark')
 parser.add_argument('--mix-batch', action='store_true', help='mix batch to simulate background sound')
@@ -139,6 +141,8 @@ elif args.model == 'quartznet15x5':
     # model.load_nvidia_nemo_weights('quartznet15x5/JasperEncoder-STEP-247400.pt', None)
 else:
     model = Speech2TextCRNN(vocab)
+if args.sync_bn:
+    model = apex.parallel.convert_syncbn_model(model)
 model = model.cuda()
 
 if args.warpctc:
