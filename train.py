@@ -47,7 +47,9 @@ parser.add_argument('--mixed-precision', action='store_true', help='enable mixed
 parser.add_argument('--warpctc', action='store_true', help='use SeanNaren/warp-ctc instead of torch.nn.CTCLoss')
 parser.add_argument('--cudnn-benchmark', action='store_true', help='enable CUDNN benchmark')
 parser.add_argument('--mix-batch', action='store_true', help='mix batch to simulate background sound')
-parser.add_argument("--max-epochs", default=300, type=int)
+parser.add_argument("--max-epochs", default=300, type=int, help="train epochs")
+parser.add_argument("--normalize", choices=['all_features', 'per_feature'], default='per_feature',
+                    help="feature normalization")
 parser.add_argument("--local_rank", default=0, type=int)
 args = parser.parse_args()
 
@@ -61,10 +63,16 @@ if args.distributed:
     torch.distributed.init_process_group(backend='nccl', init_method='env://')
 torch.backends.cudnn.benchmark = args.cudnn_benchmark
 
+num_features = 64
+if args.model == 'crnn':
+    # CRNN supports only 32 features
+    num_features = 32
+
 train_transform = Compose([LoadMagSpectrogram(),
                            AddNoiseToMagSpectrogram(noise=ColoredNoiseDataset(), probability=0.5),
                            ShiftSpectrogramAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7),
-                           ComputeMelSpectrogramFromMagSpectrogram(),
+                           ComputeMelSpectrogramFromMagSpectrogram(num_features=num_features,
+                                                                   normalize=args.normalize, eps=2**-24),
                            ApplyAlbumentations(album.Compose([
                                # album.OneOf([album.Blur(blur_limit=3),
                                #              album.MedianBlur(blur_limit=3)]),  # sometimes hurts, sometimes OK
@@ -76,7 +84,9 @@ train_transform = Compose([LoadMagSpectrogram(),
                                            probability=1),
                            ShiftSpectrogramAlongTimeAxis(time_shift_max_percentage=0.05, probability=0.7),
                            ])
-valid_transform = Compose([LoadMagSpectrogram(), ComputeMelSpectrogramFromMagSpectrogram()])
+valid_transform = Compose([LoadMagSpectrogram(),
+                           ComputeMelSpectrogramFromMagSpectrogram(num_features=num_features,
+                                                                   normalize=args.normalize, eps=2**-24)])
 
 if args.dataset == 'librispeech':
     from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
@@ -121,11 +131,11 @@ valid_data_loader = DataLoader(valid_dataset, batch_size=args.valid_batch_size, 
                                sampler=None)
 
 if args.model == 'quartznet5x5':
-    model = QuartzNet5x5(vocab=vocab, num_features=32)
+    model = QuartzNet5x5(vocab=vocab, num_features=num_features)
 elif args.model == 'quartznet10x5':
-    model = QuartzNet10x5(vocab=vocab, num_features=32)
+    model = QuartzNet10x5(vocab=vocab, num_features=num_features)
 elif args.model == 'quartznet15x5':
-    model = QuartzNet15x5(vocab=vocab, num_features=32)
+    model = QuartzNet15x5(vocab=vocab, num_features=num_features)
     # model.load_nvidia_nemo_weights('quartznet15x5/JasperEncoder-STEP-247400.pt', None)
 else:
     model = Speech2TextCRNN(vocab)
@@ -151,7 +161,8 @@ else:
     optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 total_steps = int(len(train_dataset) * args.max_epochs / (args.world_size * args.train_batch_size))
-print(total_steps)
+print("total steps:", total_steps, " epoch steps:", int(total_steps/args.max_epochs))
+
 if args.lr_policy == 'cosine':
     lr_policy = cosine_annealing
 elif args.lr_policy == 'noam':
