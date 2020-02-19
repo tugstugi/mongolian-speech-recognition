@@ -48,7 +48,7 @@ parser.add_argument('--warpctc', action='store_true', help='use SeanNaren/warp-c
 parser.add_argument('--cudnn-benchmark', action='store_true', help='enable CUDNN benchmark')
 parser.add_argument('--mix-batch', action='store_true', help='mix batch to simulate background sound')
 parser.add_argument("--max-epochs", default=300, type=int, help="train epochs")
-parser.add_argument("--normalize", choices=['all_features', 'per_feature'], default='per_feature',
+parser.add_argument("--normalize", choices=['all_features', 'per_feature'], default='all_features',
                     help="feature normalization")
 parser.add_argument("--local_rank", default=0, type=int)
 args = parser.parse_args()
