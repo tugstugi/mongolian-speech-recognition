@@ -19,10 +19,19 @@ def get_last_checkpoint_file_name(logdir):
     return checkpoints[-1]
 
 
-def load_checkpoint(checkpoint_file_name, model, optimizer, use_gpu=False):
+def load_checkpoint(checkpoint_file_name, model, optimizer, use_gpu=False, remove_module_keys=False):
     """Loads the checkpoint into the given model and optimizer."""
     checkpoint = torch.load(checkpoint_file_name, map_location='cpu' if not use_gpu else None)
-    model.load_state_dict(checkpoint['state_dict'])
+    state_dict = checkpoint['state_dict']
+    if remove_module_keys:
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith('module.'):
+                new_state_dict[k[len('module.'):]] = v
+            else:
+                new_state_dict[k] = v
+        state_dict = new_state_dict
+    model.load_state_dict(state_dict)
     model.float()
     if optimizer is not None:
         optimizer.load_state_dict(checkpoint['optimizer'])

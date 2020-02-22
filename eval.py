@@ -22,16 +22,28 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech'], default='bolorspeech',
                         help='dataset name')
     parser.add_argument("--checkpoint", type=str, required=True, help='checkpoint file to test')
-    parser.add_argument("--model", choices=['jasper', 'w2l', 'crnn'], default='w2l',
+    parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet10x5', 'quartznet15x5'], default='crnn',
                         help='choices of neural network')
+    parser.add_argument("--normalize", choices=['all_features', 'per_feature'], default='all_features',
+                        help="feature normalization")
     parser.add_argument("--batch-size", type=int, default=1, help='batch size')
     parser.add_argument("--dataload-workers-nums", type=int, default=8, help='number of workers for dataloader')
     parser.add_argument("--lm", type=str, required=False, help='link to KenLM 5-gram binary language model')
     parser.add_argument("--alpha", type=float, default=0.3, help='alpha for CTC decode')
     parser.add_argument("--beta", type=float, default=1.85, help='beta for CTC decode')
     args = parser.parse_args()
+    print(args)
 
-    valid_transform = Compose([LoadMagSpectrogram(), ComputeMelSpectrogramFromMagSpectrogram()])
+    num_features = 64
+    eps = 2 ** -24
+    if args.model == 'crnn':
+        # CRNN supports only 32 features
+        num_features = 32
+        eps = 1e-20
+
+    valid_transform = Compose([LoadMagSpectrogram(),
+                               ComputeMelSpectrogramFromMagSpectrogram(num_features=num_features,
+                                                                       normalize=args.normalize, eps=eps)])
     if args.dataset == 'librispeech':
         from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
 
@@ -47,13 +59,15 @@ if __name__ == '__main__':
     use_gpu = torch.cuda.is_available()
     print('use_gpu:', use_gpu)
 
-    if args.model == 'jasper':
-        model = TinyJasper(vocab)
-    elif args.model == 'w2l':
-        model = TinyWav2Letter(vocab)
+    if args.model == 'quartznet5x5':
+        model = QuartzNet5x5(vocab=vocab, num_features=num_features)
+    elif args.model == 'quartznet10x5':
+        model = QuartzNet10x5(vocab=vocab, num_features=num_features)
+    elif args.model == 'quartznet15x5':
+        model = QuartzNet15x5(vocab=vocab, num_features=num_features)
     else:
         model = Speech2TextCRNN(vocab)
-    load_checkpoint(args.checkpoint, model, optimizer=None, use_gpu=use_gpu)
+    load_checkpoint(args.checkpoint, model, optimizer=None, use_gpu=use_gpu, remove_module_keys=True)
     model.eval()
     model.cuda() if use_gpu else model.cpu()
 
@@ -76,15 +90,17 @@ if __name__ == '__main__':
     t = time.time()
     pbar = tqdm(valid_data_loader, unit="audios", unit_scale=valid_data_loader.batch_size)
     for batch in pbar:
-        inputs, targets = batch['input'], batch['target']
+        inputs, inputs_length, targets = batch['input'], batch['input_length'], batch['target']
         # inputs = inputs.permute(0, 2, 1)
         if use_gpu:
             inputs = inputs.cuda()
             targets = targets.cuda()
 
-        outputs = model(inputs)
-        if args.model in ['jasper', 'w2l']:
-            # make TxBxC
+        if args.model == 'crnn':
+            outputs = model(inputs.cuda())
+        else:
+            outputs, inputs_length = model(inputs.cuda(), inputs_length.cuda())
+            # BxCxT -> TxBxC
             outputs = outputs.permute(2, 0, 1)
         it += 1
 
