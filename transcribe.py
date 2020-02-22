@@ -38,12 +38,13 @@ def transcribe(data, num_features, args):
     # inputs = inputs.permute(0, 2, 1)
     if use_gpu:
         inputs = inputs.cuda()
+        inputs_length = inputs_length.cuda()
 
     t = time.time()
     if args.model == 'crnn':
-        outputs = model(inputs.cuda())
+        outputs = model(inputs)
     else:
-        outputs, inputs_length = model(inputs.cuda(), inputs_length.cuda())
+        outputs, inputs_length = model(inputs, inputs_length)
         # BxCxT -> TxBxC
         outputs = outputs.permute(2, 0, 1)
     outputs = outputs.softmax(2).permute(1, 0, 2)

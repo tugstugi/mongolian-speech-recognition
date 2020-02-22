@@ -95,11 +95,12 @@ if __name__ == '__main__':
         if use_gpu:
             inputs = inputs.cuda()
             targets = targets.cuda()
+            inputs_length = inputs_length.cuda()
 
         if args.model == 'crnn':
-            outputs = model(inputs.cuda())
+            outputs = model(inputs)
         else:
-            outputs, inputs_length = model(inputs.cuda(), inputs_length.cuda())
+            outputs, inputs_length = model(inputs, inputs_length)
             # BxCxT -> TxBxC
             outputs = outputs.permute(2, 0, 1)
         it += 1
