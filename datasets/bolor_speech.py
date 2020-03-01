@@ -10,10 +10,6 @@ from torch.utils.data import Dataset
 from .mb_speech import vocab, char2idx, idx2char, convert_text
 
 
-def convert_text(text):
-    return [char2idx[char] for char in text if char != 'B']
-
-
 def read_metadata(datasets_path, metadata_file, max_duration):
     fnames, text_lengths, texts = [], [], []
 
