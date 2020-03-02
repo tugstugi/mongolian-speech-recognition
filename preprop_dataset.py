@@ -33,9 +33,11 @@ elif args.dataset == 'bolorspeech':
     from datasets.bolor_speech import BolorSpeech
     dataset = ConcatDataset([
         BolorSpeech(name='train'),
+        BolorSpeech(name='train2'),
         BolorSpeech(name='test'),
         BolorSpeech(name='demo'),
-        BolorSpeech(name='annotation')
+        BolorSpeech(name='annotation'),
+        BolorSpeech(name='annotation-1111')
     ])
 else:
     print("unknown dataset!")
