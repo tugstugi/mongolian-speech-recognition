@@ -41,7 +41,8 @@ parser.add_argument("--clip-grad-norm", type=int, default=100, help='clip gradie
 parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet10x5', 'quartznet15x5'], default='crnn',
                     help='choices of neural network')
 parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
-parser.add_argument("--min-lr", type=float, default=1e-6, help='minimal learning rate for optimization')
+parser.add_argument("--min-lr", type=float, default=1e-5, help='minimal learning rate for optimization')
+parser.add_argument("--warm-start", type=str, help='warm start from a checkpoint')
 parser.add_argument("--lr-warmup-steps", type=int, default=2000, help='learning rate warmup steps')
 parser.add_argument("--lr-policy", choices=['noam', 'cosine', 'none'], default='noam',
                     help='learning rate scheduling policy')
@@ -144,6 +145,10 @@ elif args.model == 'quartznet15x5':
     # model.load_nvidia_nemo_weights('quartznet15x5/JasperEncoder-STEP-247400.pt', None)
 else:
     model = Speech2TextCRNN(vocab)
+
+if args.warm_start:
+    load_checkpoint(args.warm_start, model, optimizer=None, use_gpu=False, remove_module_keys=True)
+
 if args.sync_bn:
     model = apex.parallel.convert_syncbn_model(model)
 model = model.cuda()
