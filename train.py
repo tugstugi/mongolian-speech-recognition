@@ -40,7 +40,7 @@ parser.add_argument("--optim", choices=['sgd', 'adamw', 'novograd'], default='sg
 parser.add_argument("--clip-grad-norm", type=int, default=100, help='clip gradient norm value')
 parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet10x5', 'quartznet15x5'], default='crnn',
                     help='choices of neural network')
-parser.add_argument("--lr", type=float, default=7e-3, help='learning rate for optimization')
+parser.add_argument("--lr", type=float, default=5e-3, help='learning rate for optimization')
 parser.add_argument("--min-lr", type=float, default=1e-5, help='minimal learning rate for optimization')
 parser.add_argument("--warm-start", type=str, help='warm start from a checkpoint')
 parser.add_argument("--lr-warmup-steps", type=int, default=2000, help='learning rate warmup steps')
@@ -68,9 +68,11 @@ if args.distributed:
 torch.backends.cudnn.benchmark = args.cudnn_benchmark
 
 num_features = 64
+eps = 2 ** -24
 if args.model == 'crnn':
     # CRNN supports only 32 features
     num_features = 32
+    eps = 1e-20
 
 train_transform = Compose([LoadMagSpectrogram(),
                            AddNoiseToMagSpectrogram(noise=ColoredNoiseDataset(), probability=0.5),
@@ -90,7 +92,7 @@ train_transform = Compose([LoadMagSpectrogram(),
                            ])
 valid_transform = Compose([LoadMagSpectrogram(),
                            ComputeMelSpectrogramFromMagSpectrogram(num_features=num_features,
-                                                                   normalize=args.normalize, eps=2**-24)])
+                                                                   normalize=args.normalize, eps=eps)])
 
 if args.dataset == 'librispeech':
     from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
@@ -118,6 +120,16 @@ elif args.dataset == 'bolorspeech':
     valid_dataset = SpeechDataset(name='test', transform=valid_transform)
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
+
+    # only 1 voice, so use much simpler train transform
+    train_transform = Compose([LoadMagSpectrogram(),
+                               ComputeMelSpectrogramFromMagSpectrogram(num_features=num_features,
+                                                                       normalize=args.normalize, eps=eps),
+                               ApplyAlbumentations(album.Compose([album.Cutout(num_holes=8)], p=1)),
+                               TimeScaleSpectrogram(max_scale=0.1, probability=0.5),
+                               MaskSpectrogram(frequency_mask_max_percentage=0.3,
+                                               time_mask_max_percentage=0.1,
+                                               probability=0.5)])
 
     train_dataset = SpeechDataset(transform=train_transform)
     valid_dataset = SpeechDataset(transform=valid_transform)
