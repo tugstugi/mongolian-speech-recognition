@@ -78,7 +78,7 @@ train_transform = Compose([LoadMagSpectrogram(),
                            AddNoiseToMagSpectrogram(noise=ColoredNoiseDataset(), probability=0.5),
                            ShiftSpectrogramAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7),
                            ComputeMelSpectrogramFromMagSpectrogram(num_features=num_features,
-                                                                   normalize=args.normalize, eps=2**-24),
+                                                                   normalize=args.normalize, eps=eps),
                            ApplyAlbumentations(album.Compose([
                                # album.OneOf([album.Blur(blur_limit=3),
                                #              album.MedianBlur(blur_limit=3)]),  # sometimes hurts, sometimes OK
