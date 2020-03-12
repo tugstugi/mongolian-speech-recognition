@@ -79,7 +79,7 @@ if __name__ == '__main__':
         decoder = BeamCTCDecoder(labels=vocab, num_processes=4,
                                  lm_path=args.lm,
                                  alpha=args.alpha, beta=args.beta,
-                                 cutoff_top_n=40, cutoff_prob=1.0, beam_width=1000)
+                                 cutoff_top_n=40, cutoff_prob=1.0, beam_width=100)
         print("LM load time: %0.2f" % (time.time() - t))
     else:
         decoder = greedy_decoder

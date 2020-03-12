@@ -61,7 +61,7 @@ def transcribe(data, num_features, args):
         beam_ctc_decoder = BeamCTCDecoder(labels=vocab, num_processes=4,
                                           lm_path=args.lm,
                                           alpha=args.alpha, beta=args.beta,
-                                          cutoff_top_n=40, cutoff_prob=1.0, beam_width=1000)
+                                          cutoff_top_n=40, cutoff_prob=1.0, beam_width=100)
         t = time.time()
         decoded_output, _ = beam_ctc_decoder.decode(outputs)
         print()
