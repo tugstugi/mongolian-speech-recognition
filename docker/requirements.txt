@@ -1,0 +1,7 @@
+librosa>=0.6.1
+tqdm
+tensorboardX
+python-levenshtein
+opencv-python
+albumentations
+acoustics
