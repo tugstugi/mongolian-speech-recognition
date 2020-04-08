@@ -17,7 +17,7 @@ def convert_text(text):
     return [char2idx[char] for char in text if char != 'B']
 
 
-def read_metadata(metadata_file, max_duration):
+def read_metadata(dataset_path, metadata_file, max_duration):
     fnames, texts = [], []
 
     reader = csv.reader(open(metadata_file, 'rt'))
@@ -29,7 +29,7 @@ def read_metadata(metadata_file, max_duration):
                 continue
         except ValueError:
             continue
-        fnames.append(os.path.join('LibriSpeech', fname))
+        fnames.append(os.path.join(dataset_path, fname))
         texts.append(np.array(convert_text(text)))
 
     return fnames, texts
@@ -41,8 +41,9 @@ class LibriSpeech(Dataset):
         self.transform = transform
 
         datasets_path = os.path.dirname(os.path.realpath(__file__))
-        csv_file = os.path.join(datasets_path, 'LibriSpeech', 'librispeech-%s.csv' % name)
-        self.fnames, self.texts = read_metadata(csv_file, max_duration)
+        dataset_path = os.path.join(datasets_path, 'LibriSpeech')
+        csv_file = os.path.join(dataset_path, 'librispeech-%s.csv' % name)
+        self.fnames, self.texts = read_metadata(dataset_path, csv_file, max_duration)
 
     def __getitem__(self, index):
         data = {
