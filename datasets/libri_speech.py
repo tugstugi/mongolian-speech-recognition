@@ -18,7 +18,7 @@ def convert_text(text):
 
 
 def read_metadata(metadata_file, max_duration):
-    fnames, text_lengths, texts = [], [], []
+    fnames, texts = [], []
 
     reader = csv.reader(open(metadata_file, 'rt'))
     for line in reader:
@@ -29,7 +29,7 @@ def read_metadata(metadata_file, max_duration):
                 continue
         except ValueError:
             continue
-        fnames.append(fname)
+        fnames.append(os.path.join('LibriSpeech', fname))
         texts.append(np.array(convert_text(text)))
 
     return fnames, texts
@@ -41,7 +41,7 @@ class LibriSpeech(Dataset):
         self.transform = transform
 
         datasets_path = os.path.dirname(os.path.realpath(__file__))
-        csv_file = os.path.join(datasets_path, 'librivox-%s.csv' % name)
+        csv_file = os.path.join(datasets_path, 'LibriSpeech', 'librispeech-%s.csv' % name)
         self.fnames, self.texts = read_metadata(csv_file, max_duration)
 
     def __getitem__(self, index):

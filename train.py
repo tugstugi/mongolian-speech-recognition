@@ -101,7 +101,9 @@ if args.dataset == 'librispeech':
     train_dataset = ConcatDataset([
         SpeechDataset(name='train-clean-100', max_duration=max_duration, transform=train_transform),
         SpeechDataset(name='train-clean-360', max_duration=max_duration, transform=train_transform),
-        SpeechDataset(name='train-other-500', max_duration=max_duration, transform=train_transform)
+        SpeechDataset(name='train-other-500', max_duration=max_duration, transform=train_transform),
+        ColoredNoiseDataset(size=5000, transform=train_transform),
+        BackgroundSounds(size=1000, transform=train_transform)
     ])
     valid_dataset = SpeechDataset(name='dev-clean', transform=valid_transform)
 elif args.dataset == 'bolorspeech':
