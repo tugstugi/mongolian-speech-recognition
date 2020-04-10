@@ -7,11 +7,11 @@ import csv
 import numpy as np
 from torch.utils.data import Dataset
 
-from .mb_speech import vocab, char2idx, idx2char, convert_text
+from .mb_speech import vocab, convert_text
 
 
-def read_metadata(datasets_path, metadata_file, max_duration):
-    fnames, text_lengths, texts = [], [], []
+def read_metadata(dataset_path, metadata_file, max_duration):
+    fnames, texts = [], []
 
     reader = csv.reader(open(metadata_file, 'rt'))
     for line in reader:
@@ -22,7 +22,7 @@ def read_metadata(datasets_path, metadata_file, max_duration):
                 continue
         except ValueError:
             continue
-        fnames.append(os.path.join(datasets_path, fname))
+        fnames.append(os.path.join(dataset_path, fname))
         texts.append(np.array(convert_text(text)))
 
     return fnames, texts
@@ -34,8 +34,9 @@ class BolorSpeech(Dataset):
         self.transform = transform
 
         datasets_path = os.path.dirname(os.path.realpath(__file__))
-        csv_file = os.path.join(datasets_path, 'bolor-%s.csv' % name)
-        self.fnames, self.texts = read_metadata(datasets_path, csv_file, max_duration)
+        dataset_path = os.path.join(datasets_path, 'BolorSpeech')
+        csv_file = os.path.join(dataset_path, 'bolor-%s.csv' % name)
+        self.fnames, self.texts = read_metadata(dataset_path, csv_file, max_duration)
 
     def __getitem__(self, index):
         data = {
