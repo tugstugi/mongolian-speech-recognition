@@ -4,7 +4,7 @@
 __pycache__
 *.ipynb
 *.pyc
-logdir/
+logdir*/
 test*.py
 import_librivox.py
 *.wav

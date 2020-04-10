@@ -31,6 +31,7 @@ parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.A
 parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech'], default='bolorspeech',
                     help='dataset name')
 parser.add_argument("--comment", type=str, default='', help='comment in tensorboard title')
+parser.add_argument("--logdir", type=str, default='logdir', help='log dir for tensorboard logs and checkpoints')
 parser.add_argument("--train-batch-size", type=int, default=44, help='train batch size')
 parser.add_argument("--valid-batch-size", type=int, default=22, help='valid batch size')
 parser.add_argument("--dataload-workers-nums", type=int, default=4, help='number of workers for dataloader')
@@ -55,6 +56,7 @@ parser.add_argument("--max-epochs", default=300, type=int, help="train epochs")
 parser.add_argument("--normalize", choices=['all_features', 'per_feature'], default='all_features',
                     help="feature normalization")
 parser.add_argument("--local_rank", default=0, type=int)
+parser.add_argument("--freeze", default=0, type=int, help="freeze first n encoder layers of QuartzNet")
 args = parser.parse_args()
 
 args.distributed = False
@@ -178,16 +180,28 @@ else:
 
 decoder = GreedyDecoder(labels=vocab)
 
+# freeze first n encoder layers of QuartzNet
+if args.freeze != 0:
+    # TODO: check whether the model is QuartzNet
+    idx = 0
+    for idx, parameter in enumerate(model.encoder[:args.freeze].parameters()):
+        parameter.requires_grad = False
+    if args.local_rank == 0:
+        print("freezing %i n layers of total %i encoder layers" % (idx + 1, len(model.encoder)))
+
+
 if args.optim == 'sgd':
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay)
+    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),
+                                lr=args.lr, momentum=0.9, weight_decay=args.weight_decay)
 elif args.optim == 'novograd':
-    optimizer = Novograd(model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
-                         betas=(0.95, 0.5))
+    optimizer = Novograd(filter(lambda p: p.requires_grad, model.parameters()),
+                         lr=args.lr, weight_decay=args.weight_decay, betas=(0.95, 0.5))
 else:
-    optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
 
 total_steps = int(len(train_dataset) * args.max_epochs / (args.world_size * args.train_batch_size))
-print("total steps:", total_steps, " epoch steps:", int(total_steps/args.max_epochs))
+if args.local_rank == 0:
+    print("total steps:", total_steps, " epoch steps:", int(total_steps/args.max_epochs))
 
 if args.lr_policy == 'cosine':
     lr_policy = cosine_annealing
@@ -208,7 +222,7 @@ global_step = 0
 logname = "%s_%s_%s_wd%.0e" % (args.dataset, args.model, args.optim, args.weight_decay)
 if args.comment:
     logname = "%s_%s" % (logname, args.comment.replace(' ', '_'))
-logdir = os.path.join('logdir', logname)
+logdir = os.path.join(args.logdir, logname)
 writer = SummaryWriter(log_dir=logdir)
 if args.local_rank == 0:
     print(vars(args))

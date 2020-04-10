@@ -23,6 +23,8 @@ def read_metadata(dataset_path, metadata_file, max_duration):
     reader = csv.reader(open(metadata_file, 'rt'))
     for line in reader:
         fname, duration, text = line[0], line[1], line[2]
+        if fname.endswith('0.9.wav') or fname.endswith('1.1.wav'):
+            continue
         try:
             duration = float(duration)
             if duration > max_duration:
