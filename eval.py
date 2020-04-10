@@ -19,8 +19,8 @@ from decoder import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech'], default='bolorspeech',
-                        help='dataset name')
+    parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech', 'kazakh20h'],
+                        default='bolorspeech', help='dataset name')
     parser.add_argument("--checkpoint", type=str, required=True, help='checkpoint file to test')
     parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet10x5', 'quartznet15x5'], default='crnn',
                         help='choices of neural network')
@@ -48,6 +48,10 @@ if __name__ == '__main__':
         from datasets.libri_speech import LibriSpeech as SpeechDataset, vocab
 
         valid_dataset = SpeechDataset(name='dev-clean', transform=valid_transform)
+    elif args.dataset == 'kazakh20h':
+        from datasets.kazakh20h_speech import Kazakh20hSpeech as SpeechDataset, vocab
+
+        valid_dataset = SpeechDataset(name='test', transform=valid_transform)
     else:
         from datasets.bolor_speech import BolorSpeech as SpeechDataset, vocab
 

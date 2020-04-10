@@ -11,7 +11,7 @@ from datasets import Compose, LoadAudio, ComputeMagSpectrogram
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--dataset",
-                    choices=['librispeech', 'mbspeech', 'bolorspeech', 'backgroundsounds'],
+                    choices=['librispeech', 'mbspeech', 'bolorspeech', 'kazakh20h', 'backgroundsounds'],
                     default='bolorspeech', help='dataset name')
 args = parser.parse_args()
 
@@ -38,6 +38,12 @@ elif args.dataset == 'bolorspeech':
         BolorSpeech(name='demo'),
         BolorSpeech(name='annotation'),
         BolorSpeech(name='annotation-1111')
+    ])
+elif args.dataset == 'kazakh20h':
+    from datasets.kazakh20h_speech import Kazakh20hSpeech
+    dataset = ConcatDataset([
+        Kazakh20hSpeech(name='test'),
+        Kazakh20hSpeech(name='train')
     ])
 else:
     print("unknown dataset!")
