@@ -168,7 +168,7 @@ elif args.model == 'quartznet10x5':
     model = QuartzNet10x5(vocab=vocab, num_features=num_features)
 elif args.model == 'quartznet15x5':
     model = QuartzNet15x5(vocab=vocab, num_features=num_features)
-    # model.load_nvidia_nemo_weights('quartznet15x5/JasperEncoder-STEP-247400.pt', None)
+    # model.load_nvidia_nemo_weights('quartznet15x5/JasperEncoder-STEP-243800.pt', None)
 else:
     model = Speech2TextCRNN(vocab)
 
