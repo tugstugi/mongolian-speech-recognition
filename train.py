@@ -78,7 +78,11 @@ if args.model == 'crnn':
 
 train_transform = Compose([LoadMagSpectrogram(),
                            AddNoiseToMagSpectrogram(noise=ColoredNoiseDataset(), probability=0.5),
-                           ShiftSpectrogramAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7),
+                           # ShiftSpectrogramAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7),
+                           ApplyAlbumentations(album.Compose([
+                               album.GridDistortion(num_steps=10, distort_limit=0.4, interpolation=cv2.INTER_NEAREST,
+                                                    border_mode=cv2.BORDER_CONSTANT, value=0, p=0.5)
+                           ], p=1)),
                            ComputeMelSpectrogramFromMagSpectrogram(num_features=num_features,
                                                                    normalize=args.normalize, eps=eps),
                            ApplyAlbumentations(album.Compose([
@@ -90,7 +94,7 @@ train_transform = Compose([LoadMagSpectrogram(),
                            MaskSpectrogram(frequency_mask_max_percentage=0.3,
                                            time_mask_max_percentage=0.1,
                                            probability=1),
-                           ShiftSpectrogramAlongTimeAxis(time_shift_max_percentage=0.05, probability=0.7),
+                           ShiftSpectrogramAlongTimeAxis(time_shift_max_percentage=0.05, probability=0.5),
                            ])
 valid_transform = Compose([LoadMagSpectrogram(),
                            ComputeMelSpectrogramFromMagSpectrogram(num_features=num_features,
@@ -132,6 +136,16 @@ elif args.dataset == 'kazakh20h':
         # BackgroundSounds(size=100, transform=train_transform)
     ])
     valid_dataset = SpeechDataset(name='test', transform=valid_transform)
+elif args.dataset == 'germanspeech':
+    from datasets.german_speech import German as SpeechDataset, vocab
+
+    max_duration = 16.7
+    train_dataset = ConcatDataset([
+        SpeechDataset(name='train', max_duration=max_duration, transform=train_transform),
+        ColoredNoiseDataset(size=5000, transform=train_transform),
+        BackgroundSounds(size=1000, transform=train_transform)
+    ])
+    valid_dataset = SpeechDataset(name='dev', transform=valid_transform)
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
 
