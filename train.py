@@ -28,7 +28,7 @@ from misc.lr_policies import noam_v1, cosine_annealing
 from decoder import GreedyDecoder
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech', 'kazakh20h'],
+parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech', 'kazakh20h', 'germanspeech'],
                     default='bolorspeech', help='dataset name')
 parser.add_argument("--comment", type=str, default='', help='comment in tensorboard title')
 parser.add_argument("--logdir", type=str, default='logdir', help='log dir for tensorboard logs and checkpoints')
@@ -137,7 +137,7 @@ elif args.dataset == 'kazakh20h':
     ])
     valid_dataset = SpeechDataset(name='test', transform=valid_transform)
 elif args.dataset == 'germanspeech':
-    from datasets.german_speech import German as SpeechDataset, vocab
+    from datasets.german_speech import GermanSpeech as SpeechDataset, vocab
 
     max_duration = 16.7
     train_dataset = ConcatDataset([
