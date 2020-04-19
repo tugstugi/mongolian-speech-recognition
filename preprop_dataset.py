@@ -4,6 +4,7 @@ __author__ = 'Erdene-Ochir Tuguldur'
 
 import argparse
 from tqdm import *
+from joblib import Parallel, delayed
 import numpy as np
 
 from torch.utils.data import ConcatDataset
@@ -13,6 +14,7 @@ parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.A
 parser.add_argument("--dataset",
                     choices=['librispeech', 'mbspeech', 'bolorspeech', 'kazakh20h', 'germanspeech', 'backgroundsounds'],
                     default='bolorspeech', help='dataset name')
+parser.add_argument("--jobs", type=int, default=1, help="parallel jobs")
 args = parser.parse_args()
 
 if args.dataset == 'mbspeech':
@@ -49,13 +51,12 @@ elif args.dataset == 'germanspeech':
     from datasets.german_speech import GermanSpeech
     dataset = ConcatDataset([
         GermanSpeech(name='train'),
-        GermanSpeech(name='dev'),
-        GermanSpeech(name='test'),
-        GermanSpeech(name='dev'),
-        GermanSpeech(name='test_common_voice'),
-        GermanSpeech(name='test_swc'),
-        GermanSpeech(name='test_tuda'),
-        GermanSpeech(name='test_voxforge')
+        GermanSpeech(name='dev_swc'),
+        GermanSpeech(name='dev_tuda'),
+        GermanSpeech(name='dev_voxforge'),
+        GermanSpeech(name='test_swc', max_duration=40),
+        GermanSpeech(name='test_tuda', max_duration=40),
+        GermanSpeech(name='test_voxforge', max_duration=40)
     ])
 else:
     print("unknown dataset!")
@@ -64,8 +65,13 @@ else:
 
 
 transform=Compose([LoadAudio(), ComputeMagSpectrogram()])
-for data in tqdm(dataset):
+
+
+def preprocess(data):
     fname = data['fname']
     data = transform(data)
     mel_spectrogram = data['input']
     np.save(fname.replace('.wav', '.npy'), mel_spectrogram)
+
+
+Parallel(n_jobs=args.jobs)(delayed(preprocess)(d) for d in tqdm(dataset))

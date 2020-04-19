@@ -145,7 +145,11 @@ elif args.dataset == 'germanspeech':
         ColoredNoiseDataset(size=5000, transform=train_transform),
         BackgroundSounds(size=1000, transform=train_transform)
     ])
-    valid_dataset = SpeechDataset(name='dev', transform=valid_transform)
+    valid_dataset = ConcatDataset([
+        SpeechDataset(name='dev_swc', transform=valid_transform),
+        SpeechDataset(name='dev_tuda', transform=valid_transform),
+        SpeechDataset(name='dev_voxforge', transform=valid_transform)
+    ])
 else:
     from datasets.mb_speech import MBSpeech as SpeechDataset, vocab
 
