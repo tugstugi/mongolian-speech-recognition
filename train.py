@@ -79,10 +79,7 @@ if args.model == 'crnn':
 train_transform = Compose([LoadMagSpectrogram(),
                            AddNoiseToMagSpectrogram(noise=ColoredNoiseDataset(), probability=0.5),
                            # ShiftSpectrogramAlongFrequencyAxis(frequency_shift_max_percentage=0.1, probability=0.7),
-                           ApplyAlbumentations(album.Compose([
-                               album.GridDistortion(num_steps=10, distort_limit=0.4, interpolation=cv2.INTER_NEAREST,
-                                                    border_mode=cv2.BORDER_CONSTANT, value=0, p=0.5)
-                           ], p=1)),
+                           DistortMagSpectrogram(num_steps=10, distort_limit=0.4, probability=0.5),
                            ComputeMelSpectrogramFromMagSpectrogram(num_features=num_features,
                                                                    normalize=args.normalize, eps=eps),
                            ApplyAlbumentations(album.Compose([

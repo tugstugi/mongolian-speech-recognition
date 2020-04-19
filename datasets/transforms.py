@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 
 import librosa
+import albumentations as album
 
 
 class Compose(object):
@@ -27,7 +28,6 @@ class LoadAudio(object):
 
     def __call__(self, data):
         samples, sample_rate = librosa.load(data['fname'], self.sample_rate)
-        # audio_duration = len(samples) * 1.0 / sample_rate
 
         data['samples'] = samples
         data['sample_rate'] = sample_rate
@@ -40,7 +40,7 @@ class LoadMagSpectrogram(object):
 
     def __init__(self, sample_rate=16000, n_fft=512):
         self.sample_rate = sample_rate
-        self.n_fft = 512
+        self.n_fft = n_fft
 
     def __call__(self, data):
         # F,T
@@ -277,3 +277,19 @@ class ComputeMelSpectrogramFromMagSpectrogram(object):
 
         data['input'] = features.astype(np.float32)
         return data
+
+
+class DistortMagSpectrogram(object):
+    """Distorts a magnitude spectrogram."""
+
+    def __init__(self, num_steps=10, distort_limit=0.4, probability=0.5, min_length=200):
+        self.min_length = min_length
+        self.transform = album.GridDistortion(num_steps=num_steps, distort_limit=distort_limit, p=probability,
+                                              interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT,
+                                              value=0)
+
+    def __call__(self, data):
+        if data['input_length'] >= self.min_length:
+            data['input'] = self.transform(image=data['input'])['image']
+        return data
+
