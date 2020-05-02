@@ -129,7 +129,7 @@ if __name__ == '__main__':
                 duration = inputs_length[x] * 0.02  # hard coded
                 fname = valid_dataset.fnames[it + x]
                 fname = join(basename(dirname(fname)), basename(fname))
-                output.write("%s,%.2f,%s,%.2f,%.2f\n" % (fname, duration, reference, cer, wer))
+                output.write("%s,%.2f,%s,%s,%.2f,%.2f\n" % (fname, duration, reference, transcript, cer, wer))
 
         it += args.batch_size
 
