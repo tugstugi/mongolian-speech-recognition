@@ -57,11 +57,7 @@ if __name__ == '__main__':
     elif args.dataset == 'germanspeech':
         from datasets.german_speech import GermanSpeech as SpeechDataset, vocab
 
-        valid_dataset = ConcatDataset([
-            SpeechDataset(name='dev_swc', transform=valid_transform),
-            SpeechDataset(name='dev_tuda', transform=valid_transform),
-            SpeechDataset(name='dev_voxforge', transform=valid_transform)
-        ])
+        valid_dataset = SpeechDataset(name='test', transform=valid_transform)
     else:
         from datasets.bolor_speech import BolorSpeech as SpeechDataset, vocab
 
