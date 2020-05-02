@@ -31,6 +31,7 @@ if __name__ == '__main__':
     parser.add_argument("--lm", type=str, required=False, help='link to KenLM 5-gram binary language model')
     parser.add_argument("--alpha", type=float, default=0.3, help='alpha for CTC decode')
     parser.add_argument("--beta", type=float, default=1.85, help='beta for CTC decode')
+    parser.add_argument("--output", type=str, help='eval file container WER/CER for each transcription')
     args = parser.parse_args()
     print(args)
 
@@ -91,6 +92,9 @@ if __name__ == '__main__':
     it = 0
     total_cer, total_wer = 0, 0
 
+    output = None
+    if args.output is not None:
+        output = open(args.output, 'wt')
     t = time.time()
     pbar = tqdm(valid_data_loader, unit="audios", unit_scale=valid_data_loader.batch_size)
     for batch in pbar:
@@ -112,13 +116,17 @@ if __name__ == '__main__':
         target_strings = greedy_decoder.convert_to_strings(targets)
         decoded_output, _ = decoder.decode(outputs.softmax(2).permute(1, 0, 2))
 
-        cer, wer = 0, 0
         for x in range(len(target_strings)):
             transcript, reference = decoded_output[x][0], target_strings[x][0]
-            cer += decoder.cer(transcript, reference) / float(len(reference))
-            wer += decoder.wer(transcript, reference) / float(len(reference.split()))
-        total_cer += cer
-        total_wer += wer
+            cer = decoder.cer(transcript, reference) / float(len(reference))
+            wer = decoder.wer(transcript, reference) / float(len(reference.split()))
+            total_cer += cer
+            total_wer += wer
+            if output is not None:
+                output.write("%s,%s,%.2f,%.2f\n" % (valid_dataset.fnames[it + x], reference, cer, wer))
+
     print('total time: %.2fs' % (time.time() - t))
     print('total CER: %.2f' % (total_cer / len(valid_dataset) * 100))
     print('total WER: %.2f' % (total_wer / len(valid_dataset) * 100))
+    if output is not None:
+        output.close()
