@@ -3,12 +3,13 @@
 """Eval the speech model."""
 __author__ = 'Erdene-Ochir Tuguldur'
 
+from os.path import join, basename, dirname
 import argparse
 import time
 from tqdm import tqdm
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 
 from datasets import *
 from models import *
@@ -19,7 +20,7 @@ from decoder import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech', 'kazakh20h'],
+    parser.add_argument("--dataset", choices=['librispeech', 'mbspeech', 'bolorspeech', 'kazakh20h', 'germanspeech'],
                         default='bolorspeech', help='dataset name')
     parser.add_argument("--checkpoint", type=str, required=True, help='checkpoint file to test')
     parser.add_argument("--model", choices=['crnn', 'quartznet5x5', 'quartznet10x5', 'quartznet15x5'], default='crnn',
@@ -53,6 +54,14 @@ if __name__ == '__main__':
         from datasets.kazakh20h_speech import Kazakh20hSpeech as SpeechDataset, vocab
 
         valid_dataset = SpeechDataset(name='test', transform=valid_transform)
+    elif args.dataset == 'germanspeech':
+        from datasets.german_speech import GermanSpeech as SpeechDataset, vocab
+
+        valid_dataset = ConcatDataset([
+            SpeechDataset(name='dev_swc', transform=valid_transform),
+            SpeechDataset(name='dev_tuda', transform=valid_transform),
+            SpeechDataset(name='dev_voxforge', transform=valid_transform)
+        ])
     else:
         from datasets.bolor_speech import BolorSpeech as SpeechDataset, vocab
 
@@ -103,15 +112,13 @@ if __name__ == '__main__':
         if use_gpu:
             inputs = inputs.cuda()
             targets = targets.cuda()
-            inputs_length = inputs_length.cuda()
 
         if args.model == 'crnn':
             outputs = model(inputs)
         else:
-            outputs, inputs_length = model(inputs, inputs_length)
+            outputs, inputs_length = model(inputs, inputs_length.cuda() if use_gpu else inputs_length)
             # BxCxT -> TxBxC
             outputs = outputs.permute(2, 0, 1)
-        it += 1
 
         target_strings = greedy_decoder.convert_to_strings(targets)
         decoded_output, _ = decoder.decode(outputs.softmax(2).permute(1, 0, 2))
@@ -123,7 +130,12 @@ if __name__ == '__main__':
             total_cer += cer
             total_wer += wer
             if output is not None:
-                output.write("%s,%s,%.2f,%.2f\n" % (valid_dataset.fnames[it + x], reference, cer, wer))
+                duration = inputs_length[x] * 0.02  # hard coded
+                fname = valid_dataset.fnames[it + x]
+                fname = join(basename(dirname(fname)), basename(fname))
+                output.write("%s,%.2f,%s,%.2f,%.2f\n" % (fname, duration, reference, cer, wer))
+
+        it += args.batch_size
 
     print('total time: %.2fs' % (time.time() - t))
     print('total CER: %.2f' % (total_cer / len(valid_dataset) * 100))
