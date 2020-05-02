@@ -23,6 +23,11 @@ def read_metadata(dataset_path, metadata_file, max_duration):
     reader = csv.reader(open(metadata_file, 'rt'))
     for line in reader:
         fname, duration, text = line[0], line[1], line[2]
+        if len(line) > 3:
+            cer = float(line[4])
+            if cer > 0.1:
+                # ignore transcriptions with too big CER
+                continue
         try:
             duration = float(duration)
             if duration > max_duration:
