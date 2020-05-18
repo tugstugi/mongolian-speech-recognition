@@ -1,4 +1,4 @@
-"""Kazakh20h dataset."""
+"""Kazakh78h dataset: https://www.researchgate.net/publication/323193112_A_free_Kazakh_speech_database_and_a_speech_recognition_baseline"""
 __author__ = 'Erdene-Ochir Tuguldur'
 
 import os
@@ -36,14 +36,14 @@ def read_metadata(dataset_path, metadata_file, max_duration):
     return fnames, texts
 
 
-class Kazakh20hSpeech(Dataset):
+class Kazakh78hSpeech(Dataset):
 
     def __init__(self, name='train', max_duration=16.7, transform=None):
         self.transform = transform
 
         datasets_path = os.path.dirname(os.path.realpath(__file__))
-        dataset_path = os.path.join(datasets_path, 'kazakh20h')
-        csv_file = os.path.join(dataset_path, 'kazakh20h-%s.csv' % name)
+        dataset_path = os.path.join(datasets_path, 'kazakh78h')
+        csv_file = os.path.join(dataset_path, 'kazakh78h-%s.csv' % name)
         self.fnames, self.texts = read_metadata(dataset_path, csv_file, max_duration)
 
     def __getitem__(self, index):
