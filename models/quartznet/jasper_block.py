@@ -69,7 +69,7 @@ class MaskedConv1d(nn.Conv1d):
 
     def get_seq_len(self, lens):
         return ((lens + 2 * self.padding[0] - self.dilation[0] * (
-                self.kernel_size[0] - 1) - 1) / self.stride[0] + 1)
+                self.kernel_size[0] - 1) - 1) // self.stride[0] + 1)
 
     def forward(self, x, lens):
         if self.use_mask:
