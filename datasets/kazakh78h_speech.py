@@ -18,7 +18,7 @@ def convert_text(text):
     return [char2idx[char] for char in text if char != 'B' and char in char2idx]
 
 
-def read_metadata(dataset_path, metadata_file, max_duration):
+def read_metadata(dataset_path, metadata_file, max_duration, min_duration=0):
     fnames, text_lengths, texts = [], [], []
 
     reader = csv.reader(open(metadata_file, 'rt'))
@@ -26,6 +26,8 @@ def read_metadata(dataset_path, metadata_file, max_duration):
         fname, duration, text = line[0], line[1], line[2]
         try:
             duration = float(duration)
+            if duration < min_duration:
+                continue
             if duration > max_duration:
                 continue
         except ValueError:

@@ -12,7 +12,7 @@ from datasets import Compose, LoadAudio, ComputeMagSpectrogram
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--dataset",
-                    choices=['librispeech', 'mbspeech', 'bolorspeech', 'kazakh78h', 'germanspeech', 'backgroundsounds'],
+                    choices=['librispeech', 'mbspeech', 'bolorspeech', 'kazakh335h', 'germanspeech', 'backgroundsounds'],
                     default='bolorspeech', help='dataset name')
 parser.add_argument("--jobs", type=int, default=1, help="parallel jobs")
 args = parser.parse_args()
@@ -41,11 +41,12 @@ elif args.dataset == 'bolorspeech':
         BolorSpeech(name='annotation'),
         BolorSpeech(name='annotation-1111')
     ])
-elif args.dataset == 'kazakh78h':
-    from datasets.kazakh78h_speech import Kazakh78hSpeech
+elif args.dataset == 'kazakh335h':
+    from datasets.kazakh335h_speech import Kazakh335hSpeech
     dataset = ConcatDataset([
-        Kazakh78hSpeech(name='test'),
-        Kazakh78hSpeech(name='train')
+        Kazakh335hSpeech(name='test'),
+        Kazakh335hSpeech(name='dev'),
+        Kazakh335hSpeech(name='train')
     ])
 elif args.dataset == 'germanspeech':
     from datasets.german_speech import GermanSpeech
