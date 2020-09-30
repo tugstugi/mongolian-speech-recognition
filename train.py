@@ -172,10 +172,10 @@ if args.distributed:
     valid_data_sampler = torch.utils.data.distributed.DistributedSampler(valid_dataset)
 train_data_loader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=(train_data_sampler is None),
                                collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
-                               sampler=train_data_sampler)
+                               sampler=train_data_sampler, pin_memory=True)
 valid_data_loader = DataLoader(valid_dataset, batch_size=args.valid_batch_size, shuffle=False,
                                collate_fn=collate_fn, num_workers=args.dataload_workers_nums,
-                               sampler=None)
+                               sampler=None, pin_memory=True)
 
 if args.model == 'quartznet5x5':
     model = QuartzNet5x5(vocab=vocab, num_features=num_features)
@@ -267,8 +267,10 @@ def get_lr():
 def lr_decay(step, epoch):
     if lr_policy is not None:
         new_lr = lr_policy(args.lr, step, epoch, args.min_lr, args.lr_warmup_steps, total_steps)
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = new_lr
+    else:
+        new_lr = args.lr
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = new_lr
 
 
 def train(epoch, phase='train'):
