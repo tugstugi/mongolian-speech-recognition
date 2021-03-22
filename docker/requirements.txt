@@ -5,3 +5,4 @@ python-levenshtein
 opencv-python
 albumentations
 acoustics
+soundfile

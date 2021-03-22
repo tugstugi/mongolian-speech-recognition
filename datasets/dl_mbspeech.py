@@ -9,6 +9,7 @@ import csv
 import time
 import fnmatch
 import librosa
+import soundfile as sf
 import pandas as pd
 
 from zipfile import ZipFile
@@ -110,7 +111,8 @@ def _convert_mp3_to_wav(book_name, book_nr):
                 wav = samples[start:end]
                 target_sample_rate = 16000
                 wav = librosa.resample(wav, sr, target_sample_rate)
-                librosa.output.write_wav(os.path.join(wavs_path, fn + ".wav"), wav, target_sample_rate)
+                # librosa.output.write_wav(os.path.join(wavs_path, fn + ".wav"), wav, target_sample_rate) # depricated after v0.8.0
+                sf.write(os.path.join(wavs_path, fn + ".wav"), wav, target_sample_rate)
 
             chapter += 1
         except FileNotFoundError:
